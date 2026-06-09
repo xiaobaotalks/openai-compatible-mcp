@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "openai-compatible": {
+      "command": "python",
+      "args": ["-m", "openai_compatible_mcp"],
+      "env": {
+        "OPENAI_COMPATIBLE_MCP_API_KEY": "sk-your-openai-key",
+        "OPENAI_COMPATIBLE_MCP_BASE_URL": "https://api.openai.com",
+        "OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL": "gpt-4o-mini"
+      }
+    }
+  }
+}

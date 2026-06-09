@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "openai-compatible": {
+      "command": "python",
+      "args": ["-m", "openai_compatible_mcp"],
+      "env": {
+        "DEEPSEEK_API_KEY": "sk-your-deepseek-key-here"
+      }
+    }
+  }
+}
