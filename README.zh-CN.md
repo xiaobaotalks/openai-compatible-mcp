@@ -19,7 +19,24 @@ OpenRouter、Together、Groq、本地 llama.cpp 等。
 
 ## 快速开始
 
-### 1. 安装
+### 方式 A:一键安装向导(推荐,傻瓜式)
+
+双击 `setup\install.bat`(Windows)或运行 `./setup/install.sh`(macOS / Linux),
+浏览器会自动打开一个图形化向导。选 provider、填 API key、勾选要配置的客户端,
+点"一键写入配置"就完了。向导会:
+
+1. 检测 Python / pip / 包状态
+2. 从 PyPI 拉取 / 升级包
+3. 测试到你选 provider 的连接
+4. 为 Claude Desktop / Cursor / Claude Code / Codex **分别**写入配置
+   (其他 server 配置不会被覆盖)
+5. 可选:设置开机自启
+
+详细文档见 [setup/README.md](setup/README.md)。
+
+### 方式 B:命令行
+
+#### 1. 安装
 
 从源码:
 
@@ -35,7 +52,7 @@ pip install -e .
 PYTHONPATH=src python -m openai_compatible_mcp
 ```
 
-### 2. 配置
+#### 2. 配置
 
 设置你的 API key(可选地设置 base URL):
 
