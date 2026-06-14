@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>openai-compatible-mcp · 一键安装向导</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================ */
+    /* 0. Reset & tokens                                            */
+    /* ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-0: #07090f;
+      --bg-1: #0c1019;
+      --bg-2: #11161f;
+
+      --surface: rgba(255, 255, 255, 0.025);
+      --surface-2: rgba(255, 255, 255, 0.04);
+      --surface-3: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+
+      --text: #e6ebf2;
+      --text-soft: #b3bdcc;
+      --text-muted: #6b7585;
+      --text-faint: #4a5160;
+
+      --cyan: #38d3ff;
+      --cyan-soft: rgba(56, 211, 255, 0.18);
+      --cyan-glow: rgba(56, 211, 255, 0.35);
+
+      --violet: #b78bff;
+      --violet-soft: rgba(183, 139, 255, 0.18);
+
+      --amber: #f5c451;
+      --amber-soft: rgba(245, 196, 81, 0.18);
+
+      --green: #4ade80;
+      --green-soft: rgba(74, 222, 128, 0.16);
+      --red: #f87171;
+      --red-soft: rgba(248, 113, 113, 0.18);
+
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+
+      --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset,
+                     0 20px 40px -20px rgba(0,0,0,0.6),
+                     0 0 0 1px rgba(255,255,255,0.04);
+
+      --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'SF Mono', monospace;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--text);
+      background: var(--bg-0);
+      line-height: 1.5;
+      font-feature-settings: "ss01", "cv01";
+      overflow-x: hidden;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================================================ */
+    /* 1. Background — layered gradient + grid + glow               */
+    /* ============================================================ */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(1200px 600px at 12% -10%, rgba(56, 211, 255, 0.10), transparent 60%),
+        radial-gradient(900px 500px at 95% 8%, rgba(183, 139, 255, 0.08), transparent 60%),
+        radial-gradient(700px 700px at 50% 110%, rgba(56, 211, 255, 0.05), transparent 60%),
+        linear-gradient(180deg, var(--bg-0), var(--bg-1) 40%, var(--bg-0));
+    }
+    .bg::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at center, black 0%, black 40%, transparent 80%);
+      opacity: 0.4;
+    }
+    .bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      mix-blend-mode: overlay;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* ============================================================ */
+    /* 2. Layout                                                    */
+    /* ============================================================ */
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+    }
+
+    /* ============================================================ */
+    /* 3. Hero                                                      */
+    /* ============================================================ */
+    .hero {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .hero__logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px 6px 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-bottom: 28px;
+    }
+    .hero__logo .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+    .hero h1 {
+      font-size: clamp(40px, 6vw, 64px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      background: linear-gradient(180deg, #ffffff 0%, #b3bdcc 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 16px;
+    }
+    .hero h1 .accent {
+      background: linear-gradient(120deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero__sub {
+      color: var(--text-soft);
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto 24px;
+    }
+    .hero__tags {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .tag.is-cyan { color: var(--cyan); border-color: var(--cyan-soft); background: var(--cyan-soft); }
+    .tag.is-violet { color: var(--violet); border-color: var(--violet-soft); background: var(--violet-soft); }
+
+    /* ============================================================ */
+    /* 4. Card                                                      */
+    /* ============================================================ */
+    .card {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+        var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      transition: border-color 0.3s ease, transform 0.3s ease;
+    }
+    .card.is-active {
+      border-color: var(--cyan-soft);
+      box-shadow:
+        0 0 0 1px var(--cyan-soft),
+        0 20px 40px -20px rgba(0,0,0,0.6),
+        0 0 60px -20px var(--cyan-glow);
+    }
+    .card.is-done { border-color: var(--green-soft); }
+    .card.is-done .step__circle { background: var(--green); border-color: var(--green); }
+    .card.is-done .step__circle::after { content: "✓"; }
+
+    .step {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+    .step__circle {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--bg-1);
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-soft);
+      transition: all 0.3s ease;
+    }
+    .card.is-active .step__circle {
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      border-color: transparent;
+      color: var(--bg-0);
+      box-shadow: 0 0 30px var(--cyan-glow);
+    }
+    .card.is-active .step__circle::after { content: attr(data-step); }
+    .card.is-done .step__circle::after { content: "✓"; }
+    .card.is-active .step__circle .step__num,
+    .card.is-done .step__circle .step__num { display: none; }
+
+    .step__body { flex: 1; min-width: 0; }
+    .step__title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+    .step__desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+    .step__body > *:last-child { margin-bottom: 0; }
+
+    /* ============================================================ */
+    /* 5. Status rows                                               */
+    /* ============================================================ */
+    .status-list { display: flex; flex-direction: column; gap: 8px; }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    .status-row__label { color: var(--text-soft); flex: 1; }
+    .status-row__value { color: var(--text); font-weight: 500; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.is-pending { background: var(--text-faint); }
+    .status-dot.is-loading { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
+    .status-dot.is-ok { background: var(--green); box-shadow: 0 0 8px var(--green-soft); }
+    .status-dot.is-bad { background: var(--red); box-shadow: 0 0 8px var(--red-soft); }
+
+    /* ============================================================ */
+    /* 6. Buttons                                                   */
+    /* ============================================================ */
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.005em;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--surface-3);
+      border-color: rgba(255,255,255,0.22);
+      transform: translateY(-1px);
+    }
+    .btn:active:not(:disabled) { transform: translateY(0); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--primary {
+      background: linear-gradient(135deg, var(--cyan), #6cbcff);
+      color: #0a0e1a;
+      border: none;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.3) inset,
+        0 8px 24px -8px var(--cyan-glow);
+    }
+    .btn--primary:hover:not(:disabled) {
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.3) inset,
+        0 12px 32px -8px var(--cyan-glow);
+    }
+    .btn--ghost { background: transparent; }
+    .btn--small { padding: 7px 12px; font-size: 12px; border-radius: 8px; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn-row--end { justify-content: flex-end; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ============================================================ */
+    /* 7. Form                                                      */
+    /* ============================================================ */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field__label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .field__hint {
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .field__hint a { color: var(--cyan); text-decoration: none; }
+    .field__hint a:hover { text-decoration: underline; }
+    .input, .select {
+      width: 100%;
+      background: var(--bg-1);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      transition: all 0.18s ease;
+    }
+    .input:focus, .select:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px var(--cyan-soft);
+    }
+    .input::placeholder { color: var(--text-faint); }
+    .select { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%236b7585' d='M6 8L0 0h12z'/></svg>"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
+    .input-wrap { position: relative; }
+    .input-wrap .toggle-eye {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; padding: 4px; font-size: 12px;
+    }
+    .input-wrap .toggle-eye:hover { color: var(--text); }
+
+    .check-list { display: flex; flex-direction: column; gap: 8px; }
+    .check {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .check:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .check input[type=checkbox] {
+      appearance: none;
+      width: 18px; height: 18px;
+      border: 1px solid var(--border-strong);
+      border-radius: 5px;
+      background: var(--bg-1);
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .check input[type=checkbox]:checked {
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      border-color: transparent;
+    }
+    .check input[type=checkbox]:checked::after {
+      content: "";
+      position: absolute;
+      left: 5px; top: 1px;
+      width: 5px; height: 10px;
+      border: solid var(--bg-0);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .check__body { flex: 1; min-width: 0; }
+    .check__name { font-weight: 600; font-size: 14px; }
+    .check__desc { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px; }
+
+    /* ============================================================ */
+    /* 8. Code block & log                                          */
+    /* ============================================================ */
+    .code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      color: var(--text-soft);
+      overflow-x: auto;
+      position: relative;
+    }
+    .code .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+    .code .copy-btn:hover { color: var(--text); border-color: var(--border-strong); }
+    .code .prompt { color: var(--cyan); user-select: none; }
+
+    .log {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      background: #04060a;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      max-height: 220px;
+      overflow-y: auto;
+      color: var(--text-soft);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .log:empty::before {
+      content: "// 等待操作 ...";
+      color: var(--text-faint);
+      font-style: italic;
+    }
+    .log .line { display: block; }
+    .log .ok { color: var(--green); }
+    .log .err { color: var(--red); }
+    .log .info { color: var(--cyan); }
+
+    /* ============================================================ */
+    /* 9. Success banner                                            */
+    /* ============================================================ */
+    .success-banner {
+      background: linear-gradient(135deg, var(--green-soft), rgba(74, 222, 128, 0.04));
+      border: 1px solid var(--green-soft);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .success-banner__icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--green);
+      color: var(--bg-0);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 18px;
+      flex-shrink: 0;
+      box-shadow: 0 0 24px var(--green-soft);
+    }
+    .success-banner__title { font-weight: 700; font-size: 18px; margin-bottom: 4px; }
+    .success-banner__body { color: var(--text-soft); font-size: 14px; }
+
+    .restart-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .restart-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+    }
+    .restart-row__name { font-weight: 600; min-width: 130px; }
+    .restart-row__cmd { font-family: var(--font-mono); color: var(--text-soft); flex: 1; font-size: 12.5px; }
+
+    /* ============================================================ */
+    /* 10. Footer                                                   */
+    /* ============================================================ */
+    .footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--text-faint);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .footer a { color: var(--text-muted); text-decoration: none; }
+    .footer a:hover { color: var(--text-soft); }
+
+    /* ============================================================ */
+    /* 11. Responsive                                               */
+    /* ============================================================ */
+    @media (max-width: 640px) {
+      .container { padding: 32px 16px 64px; }
+      .card { padding: 20px; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    /* tiny reveal animation */
+    .card { animation: rise 0.5s ease both; }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.10s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+    .card:nth-child(4) { animation-delay: 0.20s; }
+    .card:nth-child(5) { animation-delay: 0.25s; }
+    .card:nth-child(6) { animation-delay: 0.30s; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <main class="container">
+
+    <!-- ============================================ Hero -->
+    <header class="hero">
+      <div class="hero__logo">
+        <span class="dot"></span>
+        <span id="serverStatus">连接中 ...</span>
+      </div>
+      <h1>
+        你的 MCP,<br>
+        <span class="accent">一键接入</span>任何 OpenAI 兼容 API
+      </h1>
+      <p class="hero__sub">
+        把 DeepSeek、OpenAI、Azure、OpenRouter、Groq 或者你本地的 llama.cpp
+        接入 Claude Desktop、Cursor、Claude Code 或 Codex。
+        完全本地运行,三步搞定。
+      </p>
+      <div class="hero__tags">
+        <span class="tag is-cyan">零三方依赖</span>
+        <span class="tag is-violet">支持 6+ 提供商</span>
+        <span class="tag">Python ≥ 3.9</span>
+        <span class="tag">MIT</span>
+      </div>
+    </header>
+
+    <!-- ============================================ Step 1: Environment -->
+    <section class="card" id="card-env">
+      <div class="step">
+        <div class="step__circle" data-step="1"><span class="step__num">1</span></div>
+        <div class="step__body">
+          <h2 class="step__title">检查环境</h2>
+          <p class="step__desc">检测 Python、pip 和当前包状态</p>
+          <div class="status-list" id="env-list">
+            <div class="status-row">
+              <span class="status-dot is-loading"></span>
+              <span class="status-row__label">Python</span>
+              <span class="status-row__value" id="env-py">检测中 ...</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot is-loading"></span>
+              <span class="status-row__label">pip</span>
+              <span class="status-row__value" id="env-pip">检测中 ...</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot is-loading"></span>
+              <span class="status-row__label">openai-compatible-mcp</span>
+              <span class="status-row__value" id="env-pkg">检测中 ...</span>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 16px;">
+            <button class="btn btn--small" id="btn-recheck">↻ 重新检测</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ Step 2: Install -->
+    <section class="card" id="card-install">
+      <div class="step">
+        <div class="step__circle" data-step="2"><span class="step__num">2</span></div>
+        <div class="step__body">
+          <h2 class="step__title">安装 / 升级包</h2>
+          <p class="step__desc">从 PyPI 拉取最新版本</p>
+          <div class="btn-row">
+            <button class="btn btn--primary" id="btn-install">
+              <span class="btn-label">一键安装 openai-compatible-mcp</span>
+            </button>
+            <span id="install-version" class="status-row__value" style="color: var(--text-muted); font-size: 13px;"></span>
+          </div>
+          <div class="log" id="install-log" style="margin-top: 14px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ Step 3: Provider + Key -->
+    <section class="card" id="card-config">
+      <div class="step">
+        <div class="step__circle" data-step="3"><span class="step__num">3</span></div>
+        <div class="step__body">
+          <h2 class="step__title">配置 API 提供商</h2>
+          <p class="step__desc">选你要接入的服务,粘贴 API key(可后续在配置文件中修改)</p>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field__label" for="provider">提供商</label>
+              <select class="select" id="provider">
+                <option value="deepseek">DeepSeek (推荐,便宜又快)</option>
+                <option value="openai">OpenAI (官方)</option>
+                <option value="azure">Azure OpenAI</option>
+                <option value="openrouter">OpenRouter (聚合 100+ 模型)</option>
+                <option value="groq">Groq (超快推理)</option>
+                <option value="custom">自定义 OpenAI 兼容端点</option>
+              </select>
+              <span class="field__hint" id="provider-hint">Get one at https://platform.deepseek.com/api_keys</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="apiKey">API Key</label>
+              <div class="input-wrap">
+                <input class="input" type="password" id="apiKey" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+                <button class="toggle-eye" type="button" id="toggleKey" title="显示/隐藏">👁</button>
+              </div>
+              <span class="field__hint" id="key-hint">你的 key 仅写入本机配置文件,不会上传任何地方</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="model">模型名</label>
+              <input class="input" type="text" id="model" placeholder="deepseek-chat" value="deepseek-chat" />
+              <span class="field__hint" id="model-hint">常用的别名: deepseek-v4-flash / deepseek-r1</span>
+            </div>
+            <div class="field" id="baseUrlField" style="display: none;">
+              <label class="field__label" for="baseUrl">Base URL</label>
+              <input class="input" type="text" id="baseUrl" placeholder="https://..." />
+              <span class="field__hint" id="baseUrl-hint">完整根 URL,不含 /v1/chat/completions</span>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 18px;">
+            <button class="btn" id="btn-test">
+              <span class="btn-label">测试连接</span>
+            </button>
+            <span id="test-result" class="status-row__value" style="font-size: 13px;"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ Step 4: Targets -->
+    <section class="card" id="card-targets">
+      <div class="step">
+        <div class="step__circle" data-step="4"><span class="step__num">4</span></div>
+        <div class="step__body">
+          <h2 class="step__title">选择要配置的客户端</h2>
+          <p class="step__desc">勾选你已安装的 MCP 客户端,向导会自动写入对应配置</p>
+          <div class="check-list" id="client-list">
+            <label class="check">
+              <input type="checkbox" value="claude_desktop" checked />
+              <div class="check__body">
+                <div class="check__name">Claude Desktop</div>
+                <div class="check__desc">~/Library/Application Support/Claude/claude_desktop_config.json</div>
+              </div>
+            </label>
+            <label class="check">
+              <input type="checkbox" value="cursor" checked />
+              <div class="check__body">
+                <div class="check__name">Cursor</div>
+                <div class="check__desc">~/.cursor/mcp.json</div>
+              </div>
+            </label>
+            <label class="check">
+              <input type="checkbox" value="claude_code" />
+              <div class="check__body">
+                <div class="check__name">Claude Code</div>
+                <div class="check__desc">~/.claude.json</div>
+              </div>
+            </label>
+            <label class="check">
+              <input type="checkbox" value="codex" />
+              <div class="check__body">
+                <div class="check__name">Codex CLI</div>
+                <div class="check__desc">~/.codex/config.toml (需要本地中转,见下方说明)</div>
+              </div>
+            </label>
+          </div>
+          <div class="form-grid" style="margin-top: 16px;">
+            <div class="field">
+              <label class="field__label" for="launchMethod">启动方式</label>
+              <select class="select" id="launchMethod">
+                <option value="uvx">uvx openai-compatible-mcp (推荐,需先装 uv)</option>
+                <option value="pipx">pipx run openai-compatible-mcp (需先装 pipx)</option>
+                <option value="module">python -m openai_compatible_mcp (最简单,无需额外工具)</option>
+              </select>
+              <span class="field__hint" id="launch-hint">不确定就用默认的 uvx,不行再换</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ Step 5: Apply -->
+    <section class="card" id="card-apply">
+      <div class="step">
+        <div class="step__circle" data-step="5"><span class="step__num">5</span></div>
+        <div class="step__body">
+          <h2 class="step__title">写入配置</h2>
+          <p class="step__desc">向导会把 API key 写入对应客户端的配置文件,不会上传任何地方</p>
+          <div class="btn-row">
+            <button class="btn btn--primary" id="btn-apply">
+              <span class="btn-label">一键写入配置</span>
+            </button>
+          </div>
+          <div class="log" id="apply-log" style="margin-top: 14px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ Step 6: Done -->
+    <section class="card" id="card-done" style="display: none;">
+      <div class="step">
+        <div class="step__circle" data-step="6"><span class="step__num">6</span></div>
+        <div class="step__body">
+          <h2 class="step__title">完成 ✓</h2>
+          <p class="step__desc">所有步骤都已完成。重启客户端即可使用。</p>
+          <div class="success-banner">
+            <div class="success-banner__icon">✓</div>
+            <div>
+              <div class="success-banner__title">配置已就位</div>
+              <div class="success-banner__body" id="done-summary">你选的客户端都已写入正确配置。</div>
+            </div>
+          </div>
+          <div>
+            <strong style="font-size: 14px;">重启这些客户端以加载新配置:</strong>
+            <div class="restart-list" id="restart-list"></div>
+          </div>
+          <div style="margin-top: 24px;">
+            <strong style="font-size: 14px;">可选:开机自动启动向导服务</strong>
+            <p class="step__desc" style="margin-top: 4px;">本机登录后自动拉起这个向导页(方便后续修改配置)。不勾选也不影响 MCP 客户端的使用。</p>
+            <div class="btn-row">
+              <button class="btn" id="btn-autostart">
+                <span class="btn-label">开启开机自启</span>
+              </button>
+              <span id="autostart-result" class="status-row__value" style="font-size: 13px;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      openai-compatible-mcp v0.1.0 ·
+      <a href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">github.com/xiaobaotalks/openai-compatible-mcp</a> ·
+      <a href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">PyPI</a>
+    </footer>
+  </main>
+
+  <script>
+    'use strict';
+    // ====================================================================
+    // State
+    // ====================================================================
+    const state = {
+      env: null,
+      providers: null,
+    };
+
+    // ====================================================================
+    // Utilities
+    // ====================================================================
+    const $ = (id) => document.getElementById(id);
+    const log = (elId, msg, type = '') => {
+      const el = $(elId);
+      if (!el) return;
+      const line = document.createElement('span');
+      line.className = 'line ' + type;
+      line.textContent = msg;
+      el.appendChild(line);
+      el.appendChild(document.createTextNode('\n'));
+      el.scrollTop = el.scrollHeight;
+    };
+    const clearLog = (elId) => { const el = $(elId); if (el) el.textContent = ''; };
+    const setStatus = (selector, state, value) => {
+      const dot = document.querySelector(selector + ' .status-dot');
+      const val = document.querySelector(selector + ' .status-row__value');
+      if (dot) { dot.className = 'status-dot is-' + state; }
+      if (val) val.textContent = value;
+    };
+    const setActiveCard = (id) => {
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('is-active'));
+      const card = $(id); if (card) card.classList.add('is-active');
+    };
+    const setDoneCard = (id) => {
+      const card = $(id); if (card) card.classList.add('is-done');
+    };
+    const api = async (path, method = 'GET', body = null) => {
+      const opts = { method, headers: {} };
+      if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      const r = await fetch(path, opts);
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data };
+    };
+    const buttonBusy = (btn, busy, busyLabel) => {
+      if (busy) {
+        btn.dataset.label = btn.dataset.label || btn.querySelector('.btn-label').textContent;
+        btn.querySelector('.btn-label').textContent = busyLabel || '处理中 ...';
+        btn.disabled = true;
+        const sp = document.createElement('span');
+        sp.className = 'spinner';
+        btn.prepend(sp);
+      } else {
+        if (btn.dataset.label) btn.querySelector('.btn-label').textContent = btn.dataset.label;
+        btn.disabled = false;
+        const sp = btn.querySelector('.spinner'); if (sp) sp.remove();
+      }
+    };
+
+    // ====================================================================
+    // Init: server check + env detect
+    // ====================================================================
+    async function init() {
+      try {
+        const h = await api('/api/health');
+        if (h.ok) { $('serverStatus').textContent = '服务在线 · ' + location.host; }
+      } catch (e) {
+        $('serverStatus').textContent = '服务未连接,刷新重试';
+        $('serverStatus').parentElement.style.color = 'var(--red)';
+        return;
+      }
+
+      // providers (for hints)
+      const p = await api('/api/providers');
+      state.providers = p.data;
+      updateProviderHints();
+
+      // environment
+      await checkEnv();
+    }
+
+    async function checkEnv() {
+      setStatus('#env-list .status-row:nth-child(1)', 'loading', '检测中 ...');
+      setStatus('#env-list .status-row:nth-child(2)', 'loading', '检测中 ...');
+      setStatus('#env-list .status-row:nth-child(3)', 'loading', '检测中 ...');
+
+      try {
+        const r = await api('/api/env');
+        state.env = r.data;
+        // python
+        if (r.data.python_version) {
+          setStatus('#env-list .status-row:nth-child(1)', 'ok', r.data.python_version);
+        } else {
+          setStatus('#env-list .status-row:nth-child(1)', 'bad', '未找到 Python');
+        }
+        // pip
+        if (r.data.pip_version) {
+          setStatus('#env-list .status-row:nth-child(2)', 'ok', r.data.pip_version);
+        } else {
+          setStatus('#env-list .status-row:nth-child(2)', 'bad', '未找到 pip');
+        }
+        // package
+        if (r.data.package_installed) {
+          setStatus('#env-list .status-row:nth-child(3)', 'ok', 'v' + r.data.package_version);
+          $('install-version').textContent = '已安装 v' + r.data.package_version;
+          $('btn-install').querySelector('.btn-label').textContent = '升级到最新版本';
+          setDoneCard('card-install');
+        } else {
+          setStatus('#env-list .status-row:nth-child(3)', 'pending', '未安装');
+          $('install-version').textContent = '未安装';
+        }
+      } catch (e) {
+        setStatus('#env-list .status-row:nth-child(1)', 'bad', '检测失败');
+        setStatus('#env-list .status-row:nth-child(2)', 'bad', '检测失败');
+        setStatus('#env-list .status-row:nth-child(3)', 'bad', '检测失败');
+      }
+    }
+
+    // ====================================================================
+    // Step 2: install
+    // ====================================================================
+    $('btn-install').addEventListener('click', async () => {
+      const btn = $('btn-install');
+      buttonBusy(btn, true, '正在从 PyPI 拉取 ...');
+      clearLog('install-log');
+      log('install-log', '$ pip install --upgrade openai-compatible-mcp', 'info');
+      const r = await api('/api/install', 'POST', {});
+      if (r.data.ok) {
+        log('install-log', '✓ 安装成功', 'ok');
+        const out = (r.data.stdout || '').trim().split('\n').slice(-3).join('\n');
+        if (out) log('install-log', out);
+        setDoneCard('card-install');
+        setActiveCard('card-config');
+        await checkEnv();
+      } else {
+        log('install-log', '✗ 安装失败', 'err');
+        log('install-log', (r.data.stderr || r.data.stdout || '').slice(-600), 'err');
+      }
+      buttonBusy(btn, false);
+    });
+
+    // ====================================================================
+    // Step 3: provider + key
+    // ====================================================================
+    function updateProviderHints() {
+      const v = $('provider').value;
+      const p = state.providers && state.providers[v];
+      if (!p) return;
+      $('provider-hint').innerHTML = p.key_help;
+      if (p.default_model && !$('model').dataset.touched) $('model').value = p.default_model;
+      if (p.default_base_url && !$('baseUrl').dataset.touched) $('baseUrl').value = p.default_base_url;
+      $('baseUrlField').style.display = (v === 'azure' || v === 'custom' || p.default_base_url === '') ? '' : 'none';
+    }
+    $('provider').addEventListener('change', () => { delete $('model').dataset.touched; delete $('baseUrl').dataset.touched; updateProviderHints(); });
+    $('model').addEventListener('input', () => { $('model').dataset.touched = '1'; });
+    $('baseUrl').addEventListener('input', () => { $('baseUrl').dataset.touched = '1'; });
+    $('toggleKey').addEventListener('click', () => {
+      const i = $('apiKey');
+      i.type = i.type === 'password' ? 'text' : 'password';
+    });
+
+    $('btn-test').addEventListener('click', async () => {
+      const btn = $('btn-test');
+      const out = $('test-result');
+      out.textContent = '';
+      out.style.color = 'var(--text-muted)';
+      const payload = {
+        provider: $('provider').value,
+        api_key: $('apiKey').value.trim(),
+        base_url: $('baseUrl').value.trim(),
+        model: $('model').value.trim() || 'deepseek-chat',
+      };
+      if (!payload.api_key) { out.textContent = '请先填 API key'; out.style.color = 'var(--red)'; return; }
+      buttonBusy(btn, true, '正在测试 ...');
+      const r = await api('/api/test', 'POST', payload);
+      buttonBusy(btn, false);
+      if (r.data.ok) {
+        out.textContent = '✓ 连接正常,提供商已就绪';
+        out.style.color = 'var(--green)';
+      } else {
+        out.textContent = '✗ ' + ((r.data.stderr || r.data.stdout || '').slice(-200) || '连接失败');
+        out.style.color = 'var(--red)';
+      }
+    });
+
+    // ====================================================================
+    // Step 5: apply
+    // ====================================================================
+    $('btn-apply').addEventListener('click', async () => {
+      const btn = $('btn-apply');
+      const clients = [...document.querySelectorAll('#client-list input:checked')].map(i => i.value);
+      if (clients.length === 0) {
+        clearLog('apply-log');
+        log('apply-log', '✗ 至少勾选一个客户端', 'err');
+        return;
+      }
+      const payload = {
+        provider: $('provider').value,
+        api_key: $('apiKey').value.trim(),
+        base_url: $('baseUrl').value.trim(),
+        model: $('model').value.trim() || 'deepseek-chat',
+        clients,
+        method: $('launchMethod').value,
+      };
+      if (!payload.api_key) {
+        clearLog('apply-log');
+        log('apply-log', '✗ 请先填 API key', 'err');
+        setActiveCard('card-config');
+        return;
+      }
+      buttonBusy(btn, true, '正在写入配置 ...');
+      clearLog('apply-log');
+      const r = await api('/api/configure', 'POST', payload);
+      buttonBusy(btn, false);
+      if (r.data.ok) {
+        log('apply-log', '✓ 已写入配置', 'ok');
+        for (const f of r.data.files_written) log('apply-log', '  • ' + f);
+        log('apply-log', '');
+        log('apply-log', '启动命令: ' + r.data.server_cfg.command + ' ' + r.data.server_cfg.args.join(' '), 'info');
+        showDone(clients, payload);
+      } else {
+        log('apply-log', '✗ 写入失败: ' + (r.data.error || r.data.stderr || '未知错误'), 'err');
+      }
+    });
+
+    // ====================================================================
+    // Step 6: done
+    // ====================================================================
+    const RESTART_HINTS = {
+      claude_desktop: { name: 'Claude Desktop', cmd: '完全退出后重新打开(Cmd+Q / 任务管理器结束进程)' },
+      cursor:         { name: 'Cursor',        cmd: 'Cursor → Ctrl+Shift+P → "MCP: List Servers" → 刷新' },
+      claude_code:    { name: 'Claude Code',   cmd: '退出后重新启动 claude / claude code' },
+      codex:          { name: 'Codex CLI',     cmd: '重启 Codex 桌面客户端,或重开 codex 命令' },
+    };
+    function showDone(clients, payload) {
+      $('card-done').style.display = '';
+      setDoneCard('card-apply');
+      setActiveCard('card-done');
+      $('done-summary').textContent = '已为 ' + clients.map(c => RESTART_HINTS[c].name).join(' / ') + ' 写入配置。';
+      const list = $('restart-list');
+      list.innerHTML = '';
+      for (const c of clients) {
+        const h = RESTART_HINTS[c];
+        const row = document.createElement('div');
+        row.className = 'restart-row';
+        row.innerHTML = '<span class="restart-row__name">' + h.name + '</span><span class="restart-row__cmd">' + h.cmd + '</span>';
+        list.appendChild(row);
+      }
+      $('card-done').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    $('btn-autostart').addEventListener('click', async () => {
+      const btn = $('btn-autostart');
+      const out = $('autostart-result');
+      buttonBusy(btn, true, '正在创建任务 ...');
+      const r = await api('/api/autostart', 'POST', {});
+      buttonBusy(btn, false);
+      if (r.data.ok) {
+        if (r.data.skipped) {
+          out.textContent = '✓ 已存在,无需重复创建';
+          out.style.color = 'var(--text-soft)';
+        } else {
+          out.textContent = '✓ ' + r.data.message;
+          out.style.color = 'var(--green)';
+        }
+      } else {
+        out.textContent = '✗ ' + (r.data.message || r.data.stderr || '创建失败');
+        out.style.color = 'var(--red)';
+      }
+    });
+
+    // ====================================================================
+    // Step 1: recheck
+    // ====================================================================
+    $('btn-recheck').addEventListener('click', () => checkEnv());
+
+    // ====================================================================
+    // Code copy buttons
+    // ====================================================================
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('copy-btn')) {
+        const pre = e.target.parentElement.querySelector('pre') || e.target.previousElementSibling;
+        const text = (pre ? pre.textContent : e.target.parentElement.textContent).replace(/^[\s$]+/, '').trim();
+        navigator.clipboard.writeText(text).then(() => {
+          e.target.textContent = '已复制';
+          setTimeout(() => e.target.textContent = '复制', 1200);
+        });
+      }
+    });
+
+    // Kick off
+    init();
+  </script>
+</body>
+</html>
