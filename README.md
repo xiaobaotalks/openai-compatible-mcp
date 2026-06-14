@@ -24,7 +24,24 @@ tools that any MCP-compatible client can call:
 
 ## Quick start
 
-### 1. Install
+### Option A: one-click wizard (recommended)
+
+Double-click `setup\install.bat` (Windows) or run `./setup/install.sh` (macOS / Linux).
+A browser opens with a guided wizard — pick your provider, paste your API key,
+check the MCP clients you want to configure, and click "Apply". The wizard:
+
+1. Detects Python / pip / package status
+2. Installs / upgrades the package from PyPI
+3. Tests the connection to your provider
+4. Writes the right config files for each MCP client (Claude Desktop, Cursor,
+   Claude Code, Codex) **without overwriting** any other servers you've configured
+5. Optionally sets up auto-start on login
+
+See [setup/README.md](setup/README.md) for details.
+
+### Option B: command line
+
+#### 1. Install
 
 From source:
 
@@ -40,7 +57,7 @@ Or run directly without installing:
 PYTHONPATH=src python -m openai_compatible_mcp
 ```
 
-### 2. Configure
+#### 2. Configure
 
 Set your API key and (optionally) the base URL:
 
