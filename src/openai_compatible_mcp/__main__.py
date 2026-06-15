@@ -456,6 +456,14 @@ def main(argv: list[str] | None = None) -> int:
             "(Claude Desktop / Claude Code / Cursor)。"
         ),
     )
+    mode.add_argument(
+        "--proxy",
+        action="store_true",
+        help=(
+            "启动 Codex → DeepSeek 翻译代理(默认监听 127.0.0.1:7878)。"
+            " Flask / httpx 会在首次运行时自动 pip install。"
+        ),
+    )
     parser.add_argument(
         "--client",
         choices=["claude_desktop", "claude_code", "cursor"],
