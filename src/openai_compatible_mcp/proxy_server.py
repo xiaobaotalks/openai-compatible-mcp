@@ -95,6 +95,65 @@ DEFAULT_MODEL = CONFIG.get("default_model", "deepseek-chat")
 UPSTREAM_TIMEOUT = float(CONFIG.get("upstream_timeout", 600))
 VERBOSE = bool(CONFIG.get("verbose", False))
 
+_CONFIG_DIR = Path.home() / ".openai-compatible-mcp"
+_CONFIG_PATH = _CONFIG_DIR / "proxy.json"
+
+# 模块级可变配置(用户改完 /api/* 后会立即生效,不用重启 proxy)
+_CFG_STATE: dict = {
+    "deepseek_api_base": os.environ.get(
+        "DEEPSEEK_API_BASE", CONFIG.get("deepseek_api_base", "https://api.deepseek.com")
+    ),
+    "deepseek_api_key": os.environ.get(
+        "DEEPSEEK_API_KEY", CONFIG.get("deepseek_api_key", "")
+    ),
+    "default_model": CONFIG.get("default_model", "deepseek-chat"),
+    "model_map": CONFIG.get("model_map", MODEL_MAP),
+}
+
+
+def _persist_config() -> bool:
+    """把当前 _CFG_STATE 同步写到 ~/.openai-compatible-mcp/proxy.json。"""
+    try:
+        _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "deepseek_api_base": _CFG_STATE["deepseek_api_base"],
+            "deepseek_api_key": _CFG_STATE["deepseek_api_key"],
+            "default_model": _CFG_STATE["default_model"],
+            "model_map": _CFG_STATE["model_map"],
+        }
+        with _CONFIG_PATH.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[proxy] WARN 写 {_CONFIG_PATH} 失败: {e}", file=sys.stderr)
+        return False
+
+
+# 兼容外部直接读 DEEPSEEK_API_KEY 的代码(从 _CFG_STATE 实时取)
+def _key() -> str:
+    env = os.environ.get("DEEPSEEK_API_KEY", "")
+    return env if env else _CFG_STATE["deepseek_api_key"]
+
+
+def _base() -> str:
+    env = os.environ.get("DEEPSEEK_API_BASE", "")
+    return env if env else _CFG_STATE["deepseek_api_base"]
+
+
+# 旧名(下面其它逻辑还在用 DEEPSEEK_API_KEY / DEEPSEEK_API_BASE 全局变量)
+DEEPSEEK_API_BASE = _CFG_STATE["deepseek_api_base"]
+DEEPSEEK_API_KEY = _CFG_STATE["deepseek_api_key"]
+
+
+def _mask_key(k: str) -> str:
+    """给前端展示用的 key 遮罩(只露前 7 + 后 4 位)。"""
+    if not k:
+        return ""
+    if len(k) <= 14:
+        return k[:3] + "•" * (len(k) - 6) + k[-3:]
+    return k[:7] + "•" * (len(k) - 11) + k[-4:]
+
+
 app = Flask(__name__)
 
 
@@ -621,23 +680,324 @@ def translate_sse_stream(lines: Generator[str, None, None], request_body: dict) 
 # ---------------------------------------------------------------------------
 # HTTP routes
 # ---------------------------------------------------------------------------
+_ROOT_HTML = """<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>openai-compatible-mcp proxy</title>
+<style>
+:root {
+  --bg-0: #0b0d12; --bg-1: #11141b; --bg-2: #181c25; --bg-3: #20252f;
+  --line: #2a3140; --line-2: #3a4356;
+  --fg-0: #e6e8ec; --fg-1: #a4aab8; --fg-2: #6b7280;
+  --cyan: #5eead4; --violet: #a78bfa; --green: #4ade80; --amber: #fbbf24; --red: #f87171;
+  --mono: ui-monospace, "JetBrains Mono", Consolas, "Cascadia Code", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans); background: var(--bg-0); color: var(--fg-0);
+  min-height: 100vh; padding: 32px 16px; line-height: 1.55;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+.head {
+  background: linear-gradient(135deg, rgba(94,234,212,0.10), rgba(167,139,250,0.10));
+  border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; margin-bottom: 18px;
+}
+.head h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.head .sub { font-family: var(--mono); font-size: 12px; color: var(--fg-1); margin-top: 4px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.tag {
+  font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--fg-1);
+}
+.tag.ok { color: var(--green); border-color: rgba(74,222,128,0.4); }
+.tag.warn { color: var(--amber); border-color: rgba(251,191,36,0.4); }
+.card {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 14px;
+}
+.card h2 {
+  font-size: 13px; font-weight: 600; color: var(--fg-1);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+}
+.row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.row:last-child { margin-bottom: 0; }
+.row label { font-family: var(--mono); font-size: 12px; color: var(--fg-1); min-width: 88px; }
+.row input, .row select {
+  flex: 1; background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 12px; font-family: var(--mono); font-size: 13px; color: var(--fg-0);
+  outline: none; transition: border 0.15s;
+}
+.row input:focus, .row select:focus { border-color: var(--cyan); }
+.row .btn { flex: 0 0 auto; }
+.masked { font-family: var(--mono); font-size: 12px; color: var(--fg-2); }
+button {
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--fg-0);
+  padding: 9px 16px; border-radius: 8px; font-family: var(--sans); font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
+button:hover { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: linear-gradient(135deg, var(--cyan), var(--violet)); color: #0b0d12; border-color: transparent; }
+button.primary:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px;
+  padding: 10px 18px; font-size: 13px; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+.toast.ok { border-color: var(--green); color: var(--green); }
+.toast.err { border-color: var(--red); color: var(--red); }
+.foot { text-align: center; color: var(--fg-2); font-size: 12px; margin-top: 24px; }
+.foot a { color: var(--cyan); text-decoration: none; }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kv .kv-cell { background: var(--bg-2); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); }
+.kv .kv-cell .k { font-family: var(--mono); font-size: 11px; color: var(--fg-2); text-transform: uppercase; }
+.kv .kv-cell .v { font-family: var(--mono); font-size: 13px; color: var(--fg-0); margin-top: 4px; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>openai-compatible-mcp proxy</h1>
+    <div class="sub">Codex Responses API &nbsp;→&nbsp; DeepSeek Chat Completions</div>
+    <div class="tags" id="tags">
+      <span class="tag" id="tag-key">key: ...</span>
+      <span class="tag" id="tag-up">upstream: ...</span>
+      <span class="tag" id="tag-model">model: ...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>当前状态</h2>
+    <div class="kv">
+      <div class="kv-cell"><div class="k">API Key</div><div class="v" id="kv-key">—</div></div>
+      <div class="kv-cell"><div class="k">Upstream</div><div class="v" id="kv-base">—</div></div>
+      <div class="kv-cell"><div class="k">默认模型</div><div class="v" id="kv-model">—</div></div>
+      <div class="kv-cell"><div class="k">监听地址</div><div class="v" id="kv-listen">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>更新 API Key</h2>
+    <div class="row">
+      <label>DeepSeek Key</label>
+      <input id="inp-key" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      <button class="btn primary" id="btn-key">保存</button>
+    </div>
+    <div class="row">
+      <label></label>
+      <span class="masked" id="hint-key"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>更新上游 / 模型</h2>
+    <div class="row">
+      <label>Base URL</label>
+      <input id="inp-base" type="text" placeholder="https://api.deepseek.com">
+      <button class="btn" id="btn-base">保存</button>
+    </div>
+    <div class="row">
+      <label>默认模型</label>
+      <select id="inp-model"></select>
+      <button class="btn" id="btn-model">保存</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>测试连接</h2>
+    <div class="row">
+      <label></label>
+      <button id="btn-test" class="primary">向 DeepSeek 发送测试请求</button>
+      <span class="masked" id="test-out"></span>
+    </div>
+  </div>
+
+  <div class="foot">
+    openai-compatible-mcp proxy · 端口 __PORT__ &nbsp;
+    ·&nbsp; <a href="?json=1">View as JSON</a> &nbsp;
+    ·&nbsp; <a href="/v1/models" target="_blank">/v1/models</a> &nbsp;
+    ·&nbsp; <a href="/health" target="_blank">/health</a>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+async function api(path, method = "GET", body) {
+  const r = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+function toast(msg, kind) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (kind || "");
+  setTimeout(() => t.className = "toast", 2400);
+}
+async function refresh() {
+  try {
+    const s = await api("/api/settings");
+    $("tag-key").textContent = s.api_key_configured ? "key: 已加载" : "key: 缺失";
+    $("tag-key").className = "tag " + (s.api_key_configured ? "ok" : "warn");
+    $("tag-up").textContent = "upstream: " + s.deepseek_api_base.replace(/^https?:\\/\\//, "");
+    $("tag-model").textContent = "model: " + s.default_model;
+    $("kv-key").textContent = s.api_key_masked || "(未配置)";
+    $("kv-base").textContent = s.deepseek_api_base;
+    $("kv-model").textContent = s.default_model;
+    $("kv-listen").textContent = s.listen;
+    $("inp-base").value = s.deepseek_api_base;
+    $("hint-key").textContent = s.api_key_masked ? "已加载:" + s.api_key_masked : "";
+    const sel = $("inp-model");
+    sel.innerHTML = "";
+    for (const m of s.model_options) {
+      const o = document.createElement("option");
+      o.value = m; o.textContent = m;
+      if (m === s.default_model) o.selected = true;
+      sel.appendChild(o);
+    }
+  } catch (e) { toast("加载失败: " + e.message, "err"); }
+}
+$("btn-key").onclick = async () => {
+  const v = $("inp-key").value.trim();
+  if (!v) { toast("请先粘贴 Key", "err"); return; }
+  try {
+    await api("/api/key", "POST", { api_key: v });
+    $("inp-key").value = "";
+    toast("Key 已保存,proxy 实时生效", "ok");
+    refresh();
+  } catch (e) { toast(e.message, "err"); }
+};
+$("btn-base").onclick = async () => {
+  const v = $("inp-base").value.trim();
+  if (!v) return;
+  try {
+    await api("/api/base-url", "POST", { base_url: v });
+    toast("Base URL 已更新", "ok");
+    refresh();
+  } catch (e) { toast(e.message, "err"); }
+};
+$("btn-model").onclick = async () => {
+  const v = $("inp-model").value;
+  try {
+    await api("/api/model", "POST", { model: v });
+    toast("默认模型已更新", "ok");
+    refresh();
+  } catch (e) { toast(e.message, "err"); }
+};
+$("btn-test").onclick = async () => {
+  $("test-out").textContent = "测试中…";
+  try {
+    const r = await api("/api/test", "POST");
+    $("test-out").textContent = r.ok ? "✓ " + r.detail : "✗ " + r.detail;
+    toast(r.ok ? "连接成功" : "连接失败", r.ok ? "ok" : "err");
+  } catch (e) { $("test-out").textContent = "✗ " + e.message; toast(e.message, "err"); }
+};
+refresh();
+</script>
+</body>
+</html>
+"""
+
+
 @app.route("/", methods=["GET"])
 def root():
-    """Browser/curl hitting the proxy URL gets a friendly info page instead of 404."""
+    """浏览器: 返回 web UI; ?json=1 / curl: 返回 JSON。"""
+    if request.args.get("json") == "1":
+        return jsonify({
+            "name": "openai-compatible-mcp proxy",
+            "role": "Codex Responses API  ->  DeepSeek Chat Completions",
+            "upstream": DEEPSEEK_API_BASE,
+            "api_key_configured": bool(DEEPSEEK_API_KEY),
+            "api_key_masked": _mask_key(DEEPSEEK_API_KEY),
+            "default_model": _CFG_STATE["default_model"],
+            "listen": f"{PROXY_HOST}:{PROXY_PORT}",
+            "endpoints": {
+                "POST /responses": "Codex-style Responses API (preferred)",
+                "POST /v1/responses": "Same as above, with /v1 prefix",
+                "GET  /v1/models": "List model aliases that proxy knows about",
+                "GET  /health": "Liveness probe (returns upstream + key status)",
+            },
+            "ui": "Open http://127.0.0.1:" + str(PROXY_PORT) + "/ in a browser to edit settings.",
+        })
+    return _ROOT_HTML.replace("__PORT__", str(PROXY_PORT))
+
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings():
+    """前端拉取当前状态用。"""
     return jsonify({
-        "name": "openai-compatible-mcp proxy",
-        "role": "Codex Responses API  ->  DeepSeek Chat Completions",
-        "upstream": DEEPSEEK_API_BASE,
-        "api_key_configured": bool(DEEPSEEK_API_KEY),
-        "endpoints": {
-            "POST /responses": "Codex-style Responses API (preferred)",
-            "POST /v1/responses": "Same as above, with /v1 prefix",
-            "GET  /v1/models": "List model aliases that proxy knows about",
-            "GET  /health": "Liveness probe (returns upstream + key status)",
-        },
-        "quick_test": "curl http://127.0.0.1:7878/health",
-        "codex_config": "~/.codex/config.toml -> base_url = http://127.0.0.1:7878",
+        "api_key_configured": bool(_key()),
+        "api_key_masked": _mask_key(_key()),
+        "deepseek_api_base": _base(),
+        "default_model": _CFG_STATE["default_model"],
+        "model_options": sorted(set(list(_CFG_STATE["model_map"].keys()) + ["deepseek-chat", "deepseek-reasoner"])),
+        "listen": f"{PROXY_HOST}:{PROXY_PORT}",
     })
+
+
+@app.route("/api/key", methods=["POST"])
+def api_key():
+    data = request.get_json(silent=True) or {}
+    new_key = (data.get("api_key") or "").strip()
+    if not new_key:
+        return jsonify({"ok": False, "error": "api_key 不能为空"}), 400
+    if len(new_key) < 10:
+        return jsonify({"ok": False, "error": "api_key 太短,至少 10 个字符"}), 400
+    _CFG_STATE["deepseek_api_key"] = new_key
+    # 全局变量同步(给下面 /responses 等路由用)
+    globals()["DEEPSEEK_API_KEY"] = new_key
+    ok = _persist_config()
+    return jsonify({"ok": ok, "api_key_masked": _mask_key(new_key), "persisted": ok})
+
+
+@app.route("/api/base-url", methods=["POST"])
+def api_base_url():
+    data = request.get_json(silent=True) or {}
+    new_base = (data.get("base_url") or "").strip()
+    if not (new_base.startswith("http://") or new_base.startswith("https://")):
+        return jsonify({"ok": False, "error": "base_url 必须以 http:// 或 https:// 开头"}), 400
+    _CFG_STATE["deepseek_api_base"] = new_base
+    globals()["DEEPSEEK_API_BASE"] = new_base
+    ok = _persist_config()
+    return jsonify({"ok": ok, "deepseek_api_base": new_base, "persisted": ok})
+
+
+@app.route("/api/model", methods=["POST"])
+def api_model():
+    data = request.get_json(silent=True) or {}
+    new_model = (data.get("model") or "").strip()
+    if not new_model:
+        return jsonify({"ok": False, "error": "model 不能为空"}), 400
+    _CFG_STATE["default_model"] = new_model
+    ok = _persist_config()
+    return jsonify({"ok": ok, "default_model": new_model, "persisted": ok})
+
+
+@app.route("/api/test", methods=["POST"])
+def api_test():
+    """向当前 base_url 发一个最小 chat 请求,验证 key 是否可用。"""
+    import httpx as _httpx
+    try:
+        r = _httpx.post(
+            _base().rstrip("/") + "/v1/chat/completions",
+            headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json"},
+            json={"model": _CFG_STATE["default_model"], "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+            timeout=15.0,
+        )
+        if r.status_code == 200:
+            return jsonify({"ok": True, "detail": f"HTTP 200 · upstream {_base()}"})
+        return jsonify({"ok": False, "detail": f"HTTP {r.status_code} · {r.text[:200]}"})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "detail": str(e)[:200]})
 
 
 @app.route("/health", methods=["GET"])
