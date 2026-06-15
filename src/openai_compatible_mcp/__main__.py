@@ -253,23 +253,83 @@ def _mcp_config_paths() -> list[tuple[str, Path]]:
         localappdata = Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local"))
         paths += [
             ("claude_desktop", appdata / "Claude" / "claude_desktop_config.json"),
-            ("claude_code",   appdata / "Claude Code" / "User" / "settings.json"),
-            ("cursor",        localappdata / "Cursor" / "User" / "mcp.json"),
+            ("claude_code",   home / ".claude" / "settings.json"),
+            ("cursor",        home / ".cursor" / "mcp.json"),
         ]
     elif system == "darwin":
         paths += [
             ("claude_desktop", home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"),
-            ("claude_code",   home / "Library" / "Application Support" / "Claude Code" / "User" / "settings.json"),
+            ("claude_code",   home / ".claude" / "settings.json"),
             ("cursor",        home / ".cursor" / "mcp.json"),
         ]
     else:  # Linux / others
         config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
         paths += [
             ("claude_desktop", config / "Claude" / "claude_desktop_config.json"),
-            ("claude_code",   config / "Claude Code" / "User" / "settings.json"),
+            ("claude_code",   home / ".claude" / "settings.json"),
             ("cursor",        home / ".cursor" / "mcp.json"),
         ]
     return paths
+
+
+def _claude_code_extra_paths() -> dict[str, Path]:
+    """返回 Claude Code 额外需要的文件路径（跳过登录引导的 .claude.json 等）。"""
+    home = Path.home()
+    return {
+        "onboarding": home / ".claude.json",
+        "settings": home / ".claude" / "settings.json",
+    }
+
+
+def _write_claude_code_native_config(api_key: str, python_exe: str, dry_run: bool, log_fn: Callable[[str], None]) -> bool:
+    """直接写入 Claude Code 原生配置（跳过登录 + 走 DeepSeek，不依赖环境变量）。
+
+    1. ~/.claude.json -> {"hasCompletedOnboarding": true} （跳过官方登录引导）
+    2. ~/.claude/settings.json -> env + model + mcpServers （走 DeepSeek + 启用本 MCP 工具）
+    """
+    paths = _claude_code_extra_paths()
+
+    onboarding = {"hasCompletedOnboarding": True}
+    settings: dict[str, Any] = {
+        "env": {
+            "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+            "ANTHROPIC_AUTH_TOKEN": api_key,
+            "ANTHROPIC_API_KEY": "",
+            "ANTHROPIC_MODEL": "deepseek-chat",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-chat",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-chat",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-chat",
+            "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
+            "CLAUDE_CODE_EFFORT_LEVEL": "max",
+        },
+        "model": "deepseek-chat",
+        "skipIntroduction": True,
+        "skipWelcome": True,
+    }
+    # 额外挂入我们的 MCP 工具，让 Claude Code 对话中也能调用 chat / list_models
+    servers = settings.get("mcpServers") or {}
+    if isinstance(servers, dict):
+        servers["openai-compatible"] = _make_mcp_entry(python_exe, api_key)
+    settings["mcpServers"] = servers
+
+    any_written = False
+    for name, payload in (("onboarding", onboarding), ("settings", settings)):
+        path = paths[name]
+        if dry_run:
+            log_fn(f"[claude_code/{name}] (dry-run) 会写入: {path}")
+            log_fn(json.dumps(payload, indent=2, ensure_ascii=False))
+            continue
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+            log_fn(f"[claude_code/{name}] 已写入: {path}")
+            any_written = True
+        except PermissionError as e:
+            log_fn(f"[claude_code/{name}] 权限不足 - {path}: {e}")
+        except Exception as e:
+            log_fn(f"[claude_code/{name}] 写入失败 - {path}: {e}")
+    return any_written
 
 
 def _make_mcp_entry(python_exe: str, api_key: str | None) -> dict:
@@ -301,12 +361,14 @@ def _install_config(target_client: str | None, api_key: str | None, dry_run: boo
         log_fn("[警告] 当前没有可用的 API Key。配置文件仍会生成，但 chat 工具暂时无法调用。")
         log_fn("       之后可在生成的配置文件里手动填入 env.DEEPSEEK_API_KEY。")
 
+    log_fn(f"使用 Python: {python_exe}")
+
+    # 处理各客户端的 MCP 配置（mcpServers 字段）
     targets = _mcp_config_paths()
     if target_client:
         targets = [(name, path) for name, path in targets if name == target_client]
 
-    log_fn(f"使用 Python: {python_exe}")
-    log_fn(f"将为以下客户端生成/更新 MCP 配置: " + ", ".join(name for name, _ in targets))
+    log_fn(f"MCP 注册到: " + ", ".join(name for name, _ in targets))
 
     any_written = False
     for name, path in targets:
@@ -337,11 +399,20 @@ def _install_config(target_client: str | None, api_key: str | None, dry_run: boo
         except Exception as e:
             log_fn(f"[{name}] 写入失败 - {path}: {e}")
 
+    # 对 Claude Code 额外写入原生配置（跳过登录引导 + 走 DeepSeek 网关，不需要用户再手工建 JSON）
+    if target_client is None or target_client == "claude_code":
+        log_fn("")
+        log_fn("→ 额外处理 Claude Code: 写入原生配置（跳过登录 + 接入 DeepSeek）")
+        ok = _write_claude_code_native_config(effective_key or "", python_exe, dry_run, log_fn)
+        if ok:
+            any_written = True
+
     log_fn("")
     if dry_run:
         log_fn("dry-run 完成。去掉 --dry-run 后再次执行即可真正写入。")
     elif any_written:
         log_fn("完成！请重启你的 MCP 客户端（Claude Desktop / Claude Code / Cursor）使其加载新配置。")
+        log_fn("Claude Code: 在终端输入 claude 启动，不要再点登录按钮。")
     else:
         log_fn("没有任何配置被写入，请检查上方日志。")
     return 0
