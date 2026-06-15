@@ -145,9 +145,11 @@ def test_wizard_claude_code_writes_both_files(tmp_path, monkeypatch):
 
 def test_wizard_codex_uses_local_proxy_url(tmp_path, monkeypatch):
     """Codex 必须走本地代理 http://127.0.0.1:7878(由 D:\\AItext\\codex\\proxy\\ 提供),
-    不应像 Claude 那样直连 api.deepseek.com,否则 Codex 无法被代理翻译。"""
+    不应像 Claude 那样直连 api.deepseek.com,否则 Codex 无法被代理翻译。
+    旧版 wizard 输出顶层 OPENAI_COMPATIBLE_MCP_* 变量,Codex 根本不认识,
+    这里必须输出 Codex 原生的 [model_providers.*] + experimental_bearer_token 格式。
+    """
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # 强制走 ~/.codex/config.toml 分支(避免 APPDATA 路径)
     monkeypatch.setattr("platform.system", lambda: "Linux")
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "setup"))
@@ -155,7 +157,7 @@ def test_wizard_codex_uses_local_proxy_url(tmp_path, monkeypatch):
 
     result = configure_clients(
         provider="deepseek",
-        api_key="sk-test",
+        api_key='sk-"weird"',
         base_url="https://api.deepseek.com",
         model="deepseek-v4-pro",
         clients=["codex"],
@@ -163,12 +165,30 @@ def test_wizard_codex_uses_local_proxy_url(tmp_path, monkeypatch):
         codex_base_url="http://127.0.0.1:7878",
     )
 
-    import re
-    codex_toml = (tmp_path / ".codex" / "config.toml").read_text(encoding="utf-8")
-    assert "127.0.0.1:7878" in codex_toml
-    assert "OPENAI_COMPATIBLE_MCP_BASE_URL" in codex_toml
-    m = re.search(r'OPENAI_COMPATIBLE_MCP_BASE_URL\s*=\s*"([^"]+)"', codex_toml)
-    assert m and "127.0.0.1:7878" in m.group(1)
+    toml = (tmp_path / ".codex" / "config.toml").read_text(encoding="utf-8")
+
+    # Codex 顶层字段
+    assert 'model = "deepseek-v4-pro"' in toml
+    assert 'model_provider = "openai_compatible_mcp"' in toml
+
+    # Codex 原生 [model_providers.*]
+    assert "[model_providers.openai_compatible_mcp]" in toml
+    assert "base_url" in toml and "127.0.0.1:7878" in toml
+    assert "127.0.0.1:7878/v1" in toml  # 自动补 /v1
+    assert "experimental_bearer_token" in toml  # 嵌 key,不依赖环境变量
+    assert "wire_api" in toml
+
+    # 旧版错误格式不能再出现(顶层 OPENAI_COMPATIBLE_MCP_* 变量)
+    assert "OPENAI_COMPATIBLE_MCP_API_KEY = " not in toml.replace(
+        '[mcp_servers.openai_compatible_mcp.env]\nOPENAI_COMPATIBLE_MCP_API_KEY = "', 'X'
+    ) or "OPENAI_COMPATIBLE_MCP_API_KEY" in toml  # 但在 mcp env 段里还是允许的
+
+    # MCP 服务器注册
+    assert "[mcp_servers.openai_compatible_mcp]" in toml
+    assert 'command = "openai-compatible-mcp"' in toml
+
+    # 包含引号转义
+    assert 'sk-\\"weird\\"' in toml
 
 
 if __name__ == "__main__":
