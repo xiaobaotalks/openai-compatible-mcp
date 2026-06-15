@@ -441,6 +441,14 @@ def main(argv: list[str] | None = None) -> int:
         help="只做一次环境自检并输出到 stderr，不启动 MCP 服务器。",
     )
     mode.add_argument(
+        "--wizard",
+        action="store_true",
+        help=(
+            "启动图形化配置向导(浏览器自动打开 http://127.0.0.1:8989)。"
+            "用于配置 Claude Code / Codex / Cursor 等客户端。"
+        ),
+    )
+    mode.add_argument(
         "--install-config",
         action="store_true",
         help=(
@@ -474,6 +482,17 @@ def main(argv: list[str] | None = None) -> int:
         _print_selfcheck(log)
         return 0
 
+    if args.wizard:
+        # 把 wizard.py 作为子进程跑,避免污染本进程的 stdio(MCP 协议流)。
+        import subprocess as _sp
+        wizard_py = Path(__file__).resolve().parent / "wizard.py"
+        log(f"启动配置向导: {wizard_py}")
+        try:
+            rc = _sp.call([sys.executable, str(wizard_py)])
+        except KeyboardInterrupt:
+            rc = 0
+        return rc
+
     if args.install_config:
         return _install_config(
             target_client=args.client,
@@ -481,6 +500,22 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
             log_fn=log,
         )
+
+    # 智能默认: 没传任何子命令, 并且 stdin 是 TTY, 并且没有 API key 环境变量
+    # → 自动启动 wizard(避免用户在 PowerShell 傻等 MCP server 卡住)。
+    has_key = bool(os.environ.get("OPENAI_COMPATIBLE_MCP_API_KEY")
+                   or os.environ.get("DEEPSEEK_API_KEY")
+                   or os.environ.get("OPENAI_API_KEY"))
+    if sys.stdin.isatty() and not has_key and not args.verbose:
+        log("未检测到 API key 环境变量,且未指定子命令。")
+        log("将自动启动配置向导(127.0.0.1:8989);如要直接启动 MCP server 请设置 API key 或加 -v。")
+        import subprocess as _sp
+        wizard_py = Path(__file__).resolve().parent / "wizard.py"
+        try:
+            rc = _sp.call([sys.executable, str(wizard_py)])
+        except KeyboardInterrupt:
+            rc = 0
+        return rc
 
     # 默认进入 MCP 服务器模式；启动前做一次自检到 stderr，方便排错
     _print_selfcheck(log)

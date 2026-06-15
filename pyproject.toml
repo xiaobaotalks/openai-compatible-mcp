@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openai-compatible-mcp"
-version = "0.2.3"
+version = "0.2.4"
 description = "MCP server that bridges to any OpenAI-compatible chat API (DeepSeek, OpenAI, Azure, local llama.cpp, etc.)."
 readme = "README.md"
 license = "MIT"
@@ -40,3 +40,6 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"openai_compatible_mcp" = ["wizard_index.html"]
