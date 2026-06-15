@@ -501,6 +501,14 @@ def main(argv: list[str] | None = None) -> int:
             log_fn=log,
         )
 
+    if args.proxy:
+        from openai_compatible_mcp import proxy_server
+        try:
+            proxy_server.main()
+        except KeyboardInterrupt:
+            pass
+        return 0
+
     # 智能默认: 没传任何子命令, 并且 stdin 是 TTY, 并且没有 API key 环境变量
     # → 自动启动 wizard(避免用户在 PowerShell 傻等 MCP server 卡住)。
     has_key = bool(os.environ.get("OPENAI_COMPATIBLE_MCP_API_KEY")

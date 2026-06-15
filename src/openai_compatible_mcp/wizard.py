@@ -396,6 +396,37 @@ def configure_clients(
         _atomic_write_text(p, existing_text)
         written.append(str(p))
 
+        # 同时写一份 proxy 配置到 ~/.openai-compatible-mcp/proxy.json,
+        # 这样用户跑 `openai-compatible-mcp --proxy` 就能直接拿到 key。
+        try:
+            proxy_dir = Path.home() / ".openai-compatible-mcp"
+            proxy_dir.mkdir(parents=True, exist_ok=True)
+            proxy_cfg = {
+                "deepseek_api_key": api_key,
+                "deepseek_api_base": base_url or "https://api.deepseek.com",
+                "proxy_host": "127.0.0.1",
+                "proxy_port": 7878,
+                "default_model": model or "deepseek-v4-pro",
+                "model_map": {
+                    "deepseek-v4-pro": "deepseek-chat",
+                    "deepseek-v4-flash": "deepseek-chat",
+                    "deepseek-v3-flash": "deepseek-chat",
+                    "deepseek-v3": "deepseek-chat",
+                    "deepseek-chat": "deepseek-chat",
+                    "deepseek-reasoner": "deepseek-reasoner",
+                    "deepseek-coder": "deepseek-chat",
+                    "deepseek-r1": "deepseek-reasoner",
+                },
+            }
+            (proxy_dir / "proxy.json").write_text(
+                json.dumps(proxy_cfg, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            written.append(str(proxy_dir / "proxy.json"))
+        except Exception as e:  # noqa: BLE001
+            # proxy.json 写不进不该让 wizard 整体失败
+            print(f"[wizard] WARN 写 proxy.json 失败: {e}", file=sys.stderr)
+
     return {"ok": True, "files_written": written, "server_cfg": server_cfg}
 
 
