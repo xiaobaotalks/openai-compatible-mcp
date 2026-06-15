@@ -352,6 +352,37 @@ def _merge_mcp_config(existing: dict, python_exe: str, api_key: str | None) -> d
     return merged
 
 
+def _write_proxy_api_key(api_key: str, log_fn: Callable[[str], None]) -> bool:
+    """把 DeepSeek API Key 写到 ~/.openai-compatible-mcp/proxy.json,
+    供 `openai-compatible-mcp --proxy` 启动时读取。
+    兼容 wizard 已经写过的字段(deepseek_api_key / base_url 等),只覆盖 key 那一项。"""
+    import json
+    proxy_dir = Path.home() / ".openai-compatible-mcp"
+    proxy_path = proxy_dir / "proxy.json"
+    try:
+        proxy_dir.mkdir(parents=True, exist_ok=True)
+        cfg: dict = {}
+        if proxy_path.is_file():
+            try:
+                with proxy_path.open("r", encoding="utf-8") as f:
+                    cfg = json.load(f) or {}
+            except Exception as e:  # noqa: BLE001
+                log_fn(f"proxy.json 解析失败(将被覆盖): {e}")
+                cfg = {}
+        cfg["deepseek_api_key"] = api_key
+        cfg.setdefault("deepseek_api_base", "https://api.deepseek.com")
+        cfg.setdefault("proxy_host", "127.0.0.1")
+        cfg.setdefault("proxy_port", 7878)
+        with proxy_path.open("w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        log_fn(f"已写入 DeepSeek API Key -> {proxy_path}")
+        log_fn("现在可以 `openai-compatible-mcp --proxy` 启动代理(无需再开浏览器)。")
+        return True
+    except Exception as e:  # noqa: BLE001
+        log_fn(f"[错误] 写 proxy.json 失败: {e}")
+        return False
+
+
 def _install_config(target_client: str | None, api_key: str | None, dry_run: bool, log_fn: Callable[[str], None]) -> int:
     python_exe = _python_exe()
 
@@ -415,6 +446,12 @@ def _install_config(target_client: str | None, api_key: str | None, dry_run: boo
         log_fn("Claude Code: 在终端输入 claude 启动，不要再点登录按钮。")
     else:
         log_fn("没有任何配置被写入，请检查上方日志。")
+
+    # 顺便把 Key 同步到 ~/.openai-compatible-mcp/proxy.json,这样
+    # `openai-compatible-mcp --proxy` 不用再开浏览器也能读。dry-run 模式不写。
+    if not dry_run and effective_key:
+        log_fn("")
+        _write_proxy_api_key(effective_key, log_fn)
     return 0
 
 
@@ -474,8 +511,10 @@ def main(argv: list[str] | None = None) -> int:
         "--api-key",
         default=None,
         help=(
-            "DeepSeek API Key。可配合 --install-config 写入配置文件 env.DEEPSEEK_API_KEY；"
-            "也可配合 --proxy 临时注入(无需打开浏览器向导)。"
+            "DeepSeek API Key。三种用法:"
+            " (1) 单独传:写到 ~/.openai-compatible-mcp/proxy.json;"
+            " (2) 配合 --install-config:同时写 MCP 客户端配置 + proxy.json;"
+            " (3) 配合 --proxy:临时注入到环境变量(不落盘)。"
         ),
     )
     parser.add_argument(
@@ -492,6 +531,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         _print_selfcheck(log)
         return 0
+
+    # 独立模式:`openai-compatible-mcp --api-key sk-xxx`(不带 --install-config
+    # 也不带 --proxy),只把 key 写到 ~/.openai-compatible-mcp/proxy.json,
+    # 之后任何 `openai-compatible-mcp --proxy` 都能读到。
+    if args.api_key and not (args.install_config or args.proxy):
+        ok = _write_proxy_api_key(args.api_key, log)
+        return 0 if ok else 1
 
     if args.wizard:
         # 把 wizard.py 作为子进程跑,避免污染本进程的 stdio(MCP 协议流)。
