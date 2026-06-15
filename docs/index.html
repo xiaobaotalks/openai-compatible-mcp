@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>openai-compatible-mcp · MCP 桥接 DeepSeek / OpenAI / 任意兼容端点</title>
-  <meta name="description" content="把任意 OpenAI 兼容的 API 接入 Claude Desktop、Cursor、Claude Code、Codex。DeepSeek / OpenAI / Azure / OpenRouter / Groq 全部支持。pip install 一行,完全本地运行。" />
+  <meta name="description" content="把任意 OpenAI 兼容的 API 接入 Claude Desktop、Cursor、Claude Code、Codex。DeepSeek / OpenAI / 千问 / MinMax / mimo 全部支持。pip install 一行,完全本地运行。" />
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2338d3ff'/><path d='M10 12h12M10 16h12M10 20h8' stroke='%23000' stroke-width='2' stroke-linecap='round'/></svg>" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -215,8 +215,30 @@
       color: var(--text-soft);
       font-size: clamp(16px, 1.8vw, 19px);
       max-width: 720px;
-      margin: 0 auto 32px;
+      margin: 0 auto 14px;
     }
+    .hero__clients {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+      max-width: 720px; margin: 0 auto 18px;
+    }
+    .hero__chip {
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+      padding: 5px 12px; border-radius: 999px;
+      background: var(--surface-1); border: 1px solid var(--border);
+      color: var(--text-soft);
+    }
+    .hero__chip b { color: var(--text); font-weight: 600; }
+    .hero__features {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+      max-width: 720px; margin: 0 auto 32px;
+    }
+    .hero__feat {
+      font-size: 13px; padding: 6px 14px; border-radius: 8px;
+      background: linear-gradient(135deg, rgba(94,234,212,0.10), rgba(167,139,250,0.10));
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .hero__feat b { color: var(--cyan); font-weight: 600; }
     .hero__cta {
       display: inline-flex;
       flex-wrap: wrap;
@@ -590,11 +612,11 @@
     .provider__hint { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin-top: 2px; }
     .provider--deepseek .provider__logo { background: linear-gradient(135deg, #4d8aff, #38d3ff); color: white; }
     .provider--openai .provider__logo { background: #10a37f; color: white; }
-    .provider--azure .provider__logo { background: linear-gradient(135deg, #0078d4, #50a3ff); color: white; }
-    .provider--openrouter .provider__logo { background: linear-gradient(135deg, #b78bff, #6c5ce7); color: white; }
-    .provider--groq .provider__logo { background: #f55036; color: white; }
+    .provider--qwen .provider__logo { background: linear-gradient(135deg, #ff6a00, #b536c9); color: white; }
+    .provider--minimax .provider__logo { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; }
+    .provider--mimo .provider__logo { background: linear-gradient(135deg, #ff4d2e, #ff9558); color: white; }
     .provider--custom .provider__logo { background: var(--surface-2); color: var(--text-soft); }
-    .provider--deepseek::after, .provider--openai::after, .provider--azure::after, .provider--openrouter::after, .provider--groq::after { content: "★"; margin-left: auto; color: var(--amber); font-size: 13px; }
+    .provider--deepseek::after, .provider--openai::after, .provider--qwen::after, .provider--minimax::after, .provider--mimo::after { content: "★"; margin-left: auto; color: var(--amber); font-size: 13px; }
 
     .clients {
       display: grid;
@@ -938,10 +960,19 @@
       </div>
 
       <h1>一行 <span class="accent">pip install</span><br>把 MCP 接到 DeepSeek / 任意兼容端点</h1>
-      <p class="hero__sub">
-        图形化向导,本地跑,零三方依赖。<br>
-        支持 <b>Claude Desktop</b> · <b>Cursor</b> · <b>Claude Code</b> · <b>Codex CLI</b>。Codex 走内置翻译代理,Claude Code 直接跳过登录。
-      </p>
+      <p class="hero__sub">图形化向导 · 本地跑 · 零三方依赖</p>
+
+      <div class="hero__clients">
+        <span class="hero__chip"><b>Claude</b> Desktop</span>
+        <span class="hero__chip"><b>Cursor</b></span>
+        <span class="hero__chip"><b>Claude</b> Code</span>
+        <span class="hero__chip"><b>Codex</b> CLI</span>
+      </div>
+
+      <div class="hero__features">
+        <span class="hero__feat"><b>Codex</b> · 走内置翻译代理</span>
+        <span class="hero__feat"><b>Claude Code</b> · 直接跳过登录</span>
+      </div>
 
       <div class="hero__cta">
         <a class="btn btn--primary" href="https://github.com/xiaobaotalks/openai-compatible-mcp#quick-start" target="_blank">
@@ -1084,7 +1115,7 @@
         <div class="feature is-violet">
           <div class="feature__icon">🌐</div>
           <div class="feature__title">6+ 提供商</div>
-          <div class="feature__desc">DeepSeek / OpenAI / Azure / OpenRouter / Groq / 自定义;只要有 <code>/v1/chat/completions</code> 就能用。</div>
+          <div class="feature__desc">DeepSeek / OpenAI / 千问 / MinMax / mimo / 自定义;只要有 <code>/v1/chat/completions</code> 就能用。</div>
         </div>
       </div>
     </section>
@@ -1188,7 +1219,7 @@
         <div class="step-card">
           <div class="step-card__num">02</div>
           <div class="step-card__title">填 API key,点"测试连接"</div>
-          <div class="step-card__desc">从下拉里选 DeepSeek / OpenAI / Azure / OpenRouter / Groq / 自定义,粘 key,点一下就发请求验通。</div>
+          <div class="step-card__desc">从下拉里选 DeepSeek / OpenAI / 千问 / MinMax / mimo / 自定义,粘 key,点一下就发请求验通。</div>
         </div>
         <div class="step-card">
           <div class="step-card__num">03</div>
@@ -1234,7 +1265,7 @@
       <div class="block__head">
         <div class="block__eyebrow">// 兼容的提供商</div>
         <h2 class="block__title">支持 6 个内置提供商,以及任何 OpenAI 兼容端点</h2>
-        <p class="block__desc">只要暴露 <code>/v1/chat/completions</code> 就能用。OpenAI 官方、Azure、OpenRouter、Groq、Together、llama.cpp、vLLM、LM Studio、本地 Ollama 走 OpenAI 兼容模式,全部支持。</p>
+        <p class="block__desc">只要暴露 <code>/v1/chat/completions</code> 就能用。OpenAI 官方、DeepSeek、千问 (DashScope)、MinMax、mimo (小米)、Together、llama.cpp、vLLM、LM Studio、本地 Ollama 走 OpenAI 兼容模式,全部支持。</p>
       </div>
 
       <div class="providers">
@@ -1252,25 +1283,25 @@
             <div class="provider__hint">api.openai.com</div>
           </div>
         </div>
-        <div class="provider provider--azure">
-          <div class="provider__logo">AZ</div>
+        <div class="provider provider--qwen">
+          <div class="provider__logo">QW</div>
           <div>
-            <div class="provider__name">Azure OpenAI</div>
-            <div class="provider__hint">*.openai.azure.com</div>
+            <div class="provider__name">千问 (Qwen)</div>
+            <div class="provider__hint">dashscope.aliyuncs.com/compatible-mode/v1</div>
           </div>
         </div>
-        <div class="provider provider--openrouter">
-          <div class="provider__logo">OR</div>
+        <div class="provider provider--minimax">
+          <div class="provider__logo">MM</div>
           <div>
-            <div class="provider__name">OpenRouter</div>
-            <div class="provider__hint">openrouter.ai</div>
+            <div class="provider__name">MinMax</div>
+            <div class="provider__hint">api.minimaxi.com/v1</div>
           </div>
         </div>
-        <div class="provider provider--groq">
-          <div class="provider__logo">GQ</div>
+        <div class="provider provider--mimo">
+          <div class="provider__logo">Mi</div>
           <div>
-            <div class="provider__name">Groq</div>
-            <div class="provider__hint">api.groq.com</div>
+            <div class="provider__name">mimo (小米)</div>
+            <div class="provider__hint">api.xiaomimimo.com/v1</div>
           </div>
         </div>
         <div class="provider provider--custom">
@@ -1388,7 +1419,7 @@
           <div class="compare__title">用 openai-compatible-mcp</div>
           <ul class="compare__list">
             <li>图形化向导,鼠标点完事</li>
-            <li>支持 6+ 提供商,默认 DeepSeek</li>
+            <li>支持 6+ 提供商,默认 DeepSeek / 千问 / MinMax / mimo</li>
             <li>stdio JSON-RPC 2.0,自实现,无依赖</li>
             <li>Codex / Claude Code 适配已写好</li>
             <li>配置是合并式,不动你其他 MCP</li>
