@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "openai-compatible-mcp"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 
 
 # ---------------------------------------------------------------------------
