@@ -129,6 +129,30 @@ export OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL="my-model"
 
 #### Claude Code / 其他 stdio 客户端
 
+Claude Code 启动时会先检查 `~/.claude.json`，如果存在 `hasCompletedOnboarding: true` 则跳过官方登录引导。本工具的 `--install-config` 会自动写入该文件，同时写入 `~/.claude/settings.json` 将请求路由到 DeepSeek。
+
+```bash
+# 一键生成所有配置文件（Claude Desktop / Claude Code / Cursor）
+python -m openai_compatible_mcp --install-config --api-key sk-your-key
+
+# 只针对 Claude Code
+python -m openai_compatible_mcp --install-config --client claude_code --api-key sk-your-key
+
+# 只做 dry-run 查看会写入什么
+python -m openai_compatible_mcp --install-config --dry-run
+```
+
+写入内容：
+
+- **`~/.claude.json`** → `{"hasCompletedOnboarding": true}`（跳过登录引导）
+- **`~/.claude/settings.json`** → `env.ANTHROPIC_BASE_URL` + `env.ANTHROPIC_AUTH_TOKEN` + `mcpServers.openai-compatible`（路由到 DeepSeek + 注册 MCP 工具）
+
+> **已知限制**：Claude Code 2025 年后版本强制要求 OAuth 登录，配置文件可能无法完全绕过。此时需要借助 CC Switch 等本地代理工具劫持请求，详见 [CC Switch 使用教程](https://docs.apiyi.com/scenarios/programming/cc-switch)。
+
+Windows 用户可直接双击 `setup\install-oneclick.bat`，全自动完成以上所有步骤。
+
+#### 其他 stdio 客户端
+
 同样格式:把 `python -m openai_compatible_mcp` 启动为子进程,stdin/stdout 走 JSON-RPC。
 
 ## 工具

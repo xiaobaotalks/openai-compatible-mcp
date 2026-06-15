@@ -134,6 +134,30 @@ See `examples/claude_desktop_config.json` for a full sample.
 
 #### Claude Code / other stdio clients
 
+Claude Code checks `~/.claude.json` at startup. If `hasCompletedOnboarding: true` exists, it skips the official login flow. This tool's `--install-config` writes that file automatically, plus `~/.claude/settings.json` to route requests to DeepSeek.
+
+```bash
+# Generate all configs at once (Claude Desktop / Claude Code / Cursor)
+python -m openai_compatible_mcp --install-config --api-key sk-your-key
+
+# Target Claude Code only
+python -m openai_compatible_mcp --install-config --client claude_code --api-key sk-your-key
+
+# Dry-run to preview what would be written
+python -m openai_compatible_mcp --install-config --dry-run
+```
+
+What gets written:
+
+- **`~/.claude.json`** → `{"hasCompletedOnboarding": true}` (skips login)
+- **`~/.claude/settings.json`** → `env.ANTHROPIC_BASE_URL` + `env.ANTHROPIC_AUTH_TOKEN` + `mcpServers.openai-compatible` (routes to DeepSeek + registers MCP tools)
+
+> **Known limitation**: Claude Code versions after 2025 enforce OAuth login and the config file bypass may not work. Use CC Switch or similar local proxy tools to intercept traffic, see the [CC Switch guide](https://docs.apiyi.com/scenarios/programming/cc-switch).
+
+Windows users can double-click `setup\install-oneclick.bat` to run everything automatically.
+
+#### Other stdio clients
+
 Same shape: launch `python -m openai_compatible_mcp` as a subprocess and
 read/write JSON-RPC over its stdin/stdout.
 

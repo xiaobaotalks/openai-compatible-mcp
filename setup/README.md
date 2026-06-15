@@ -7,11 +7,20 @@
 
 ## 一键启动
 
-### Windows
+### Windows — 方式一（推荐：完全自动）
 
-1. 下载或 clone 整个仓库
-2. 双击 `setup\install.bat`
-3. 浏览器自动打开 `http://127.0.0.1:8989`,跟着点就行
+双击 `install-oneclick.bat`，自动完成所有步骤（检测 Python、安装包、写入配置文件、显示说明），无需手动输入任何命令。
+
+```
+setup\
+├── install-oneclick.bat  ← 双击这个（推荐）
+└── install.bat           ← 图形化向导（需要浏览器）
+```
+
+### Windows — 方式二（图形化向导）
+
+1. 双击 `setup\install.bat`
+2. 浏览器自动打开 `http://127.0.0.1:8989`，跟着点就行
 
 或者在 PowerShell 里:
 
@@ -29,6 +38,16 @@ chmod +x install.sh
 ```
 
 ## 流程
+
+### install-oneclick.bat（全自动）
+
+1. **检测 Python** — 查找常见安装路径，提示用户安装如未找到
+2. **安装包** — `pip install -e .`（editable 模式）
+3. **环境自检** — 检测模块可加载性、API Key 配置情况
+4. **写入配置** — 自动写入所有目标客户端的配置文件（合并式，不破坏现有配置）
+5. **显示说明** — 告知用户如何使用
+
+### install.bat（向导式）
 
 1. **检查环境** - 检测 Python、pip、当前包状态
 2. **一键安装** - 从 PyPI 拉取 `openai-compatible-mcp`
@@ -79,13 +98,19 @@ chmod +x install.sh
 |                | `~/Library/Application Support/Claude/...` (macOS)    |
 |                | `~/.config/Claude/...` (Linux)                        |
 | Cursor         | `~/.cursor/mcp.json`                                  |
-| Claude Code    | `~/.claude.json`                                      |
+| Claude Code    | `~/.claude.json` + `~/.claude/settings.json`              |
 | Codex          | `~/.codex/config.toml`                                |
 
 ## 配置写入是合并式的
 
 向导**不会**覆盖你现有的 MCP 配置,只会把 `openai-compatible` 这一个 server
 加到 `mcpServers` 字段下,其他 server 都保留。
+
+## Claude Code 跳过登录
+
+Claude Code 启动时会检查 `~/.claude.json`，如果存在 `hasCompletedOnboarding: true` 则跳过登录引导。`install-oneclick.bat` 会自动写入该文件，同时在 `~/.claude/settings.json` 中设置 `ANTHROPIC_BASE_URL` 和 `ANTHROPIC_AUTH_TOKEN`，将 API 请求路由到 DeepSeek。
+
+> **注意**：Claude Code 2025 年后版本强制要求 OAuth 登录，纯配置文件可能无法完全绕过登录。此时需要借助 CC Switch 等本地代理工具（原理是将所有请求劫持到第三方服务器，使 Claude Code 无法连接官方登录接口），详见 [CC Switch 使用教程](https://docs.apiyi.com/scenarios/programming/cc-switch)。
 
 ## 配置文件示例
 
