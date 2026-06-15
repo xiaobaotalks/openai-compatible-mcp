@@ -12,7 +12,7 @@ OpenRouter、Together、Groq、本地 llama.cpp 等。
 
 - **零三方依赖**(Python 3.9+ 标准库)
 - 支持**任何** OpenAI 兼容 chat API
-- 友好的模型别名(`deepseek-v4-flash` → `deepseek-chat`,`r1` → `deepseek-reasoner` 等)
+- 友好的模型别名(`deepseek-v4-flash` → `deepseek-v4-flash`,`r1` → `deepseek-reasoner` 等)
 - 可选的 reasoning 内容提取(DeepSeek-R1 风格)
 - 自实现 JSON-RPC 2.0 over stdio MCP 传输
 - 代码量小:~400 行
@@ -174,7 +174,7 @@ export OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL="my-model"
 Bug 化作一行诗。
 
 ---
-model: deepseek-chat | prompt_tokens: 12 | completion_tokens: 28 | total_tokens: 40
+model: deepseek-v4-pro | prompt_tokens: 12 | completion_tokens: 28 | total_tokens: 40
 ```
 
 ### `list_models`
@@ -185,20 +185,20 @@ model: deepseek-chat | prompt_tokens: 12 | completion_tokens: 28 | total_tokens:
 
 你可以在 `src/openai_compatible_mcp/client.py` 里增删别名。默认:
 
-| 别名                 | 解析为            |
-| -------------------- | ----------------- |
-| `deepseek-v4-flash`  | `deepseek-chat`   |
-| `deepseek-v4-pro`    | `deepseek-chat`   |
-| `deepseek-v3`        | `deepseek-chat`   |
-| `deepseek-chat`      | `deepseek-chat`   |
-| `deepseek-reasoner`  | `deepseek-reasoner` |
-| `deepseek-r1`        | `deepseek-reasoner` |
-| `deepseek-coder`     | `deepseek-chat`   |
-| `gpt-4o`             | `gpt-4o`          |
-| `gpt-4o-mini`        | `gpt-4o-mini`     |
-| `o1`                 | `o1`              |
-| `o1-mini`            | `o1-mini`         |
-| `o3-mini`            | `o3-mini`         |
+| 别名                 | 解析为                |
+| -------------------- | --------------------- |
+| `deepseek-v4-pro`    | `deepseek-v4-pro`     |
+| `deepseek-v4-flash`  | `deepseek-v4-flash`   |
+| `deepseek-v3`        | `deepseek-v4-pro`     |
+| `deepseek-chat`      | `deepseek-v4-pro`     |
+| `deepseek-reasoner`  | `deepseek-reasoner`   |
+| `deepseek-r1`        | `deepseek-reasoner`   |
+| `deepseek-coder`     | `deepseek-v4-pro`     |
+| `gpt-4o`             | `gpt-4o`              |
+| `gpt-4o-mini`        | `gpt-4o-mini`         |
+| `o1`                 | `o1`                  |
+| `o1-mini`            | `o1-mini`             |
+| `o3-mini`            | `o3-mini`             |
 
 不在别名表里的模型名会原样透传给 provider,所以 provider 一发布新模型就能直接用。
 

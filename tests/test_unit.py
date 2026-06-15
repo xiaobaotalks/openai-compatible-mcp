@@ -11,7 +11,7 @@ from openai_compatible_mcp import client, server
 
 
 def test_resolve_model_uses_alias():
-    assert client.resolve_model("deepseek-v4-flash") == "deepseek-chat"
+    assert client.resolve_model("deepseek-v4-flash") == "deepseek-v4-flash"
     assert client.resolve_model("deepseek-r1") == "deepseek-reasoner"
     assert client.resolve_model("gpt-4o-mini") == "gpt-4o-mini"
     # unknown model passes through
@@ -100,6 +100,75 @@ def test_server_notifications_return_none():
     s = server.MCPServer()
     r = s._handle({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
     assert r is None
+
+
+def test_wizard_claude_code_writes_both_files(tmp_path, monkeypatch):
+    """wizard must write BOTH ~/.claude.json (mcpServers + skip login)
+    AND ~/.claude/settings.json (env vars / ANTHROPIC_BASE_URL).
+    Earlier versions only wrote ~/.claude.json, so Claude Code still tried
+    api.anthropic.com and the user got a login prompt.
+    """
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "setup"))
+    from server import configure_clients  # type: ignore
+
+    result = configure_clients(
+        provider="deepseek",
+        api_key="sk-test",
+        base_url="https://api.deepseek.com",
+        model="deepseek-v4-pro",
+        clients=["claude_code"],
+        method="python",
+    )
+
+    import json
+    claude_json = tmp_path / ".claude.json"
+    settings_json = tmp_path / ".claude" / "settings.json"
+
+    assert str(claude_json) in result["files_written"]
+    assert str(settings_json) in result["files_written"]
+
+    cj = json.loads(claude_json.read_text(encoding="utf-8"))
+    assert cj["hasCompletedOnboarding"] is True
+    assert cj["numStartups"] >= 1
+    assert "openai-compatible" in cj.get("mcpServers", {})
+
+    sj = json.loads(settings_json.read_text(encoding="utf-8"))
+    env = sj.get("env", {})
+    assert env.get("ANTHROPIC_BASE_URL") == "https://api.deepseek.com/anthropic"
+    assert env.get("ANTHROPIC_AUTH_TOKEN") == "sk-test"
+    assert env.get("ANTHROPIC_API_KEY") == ""
+    assert env.get("ANTHROPIC_MODEL") == "deepseek-v4-pro"
+    assert "openai-compatible" in sj.get("mcpServers", {})
+
+
+def test_wizard_codex_uses_local_proxy_url(tmp_path, monkeypatch):
+    """Codex 必须走本地代理 http://127.0.0.1:7878(由 D:\\AItext\\codex\\proxy\\ 提供),
+    不应像 Claude 那样直连 api.deepseek.com,否则 Codex 无法被代理翻译。"""
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    # 强制走 ~/.codex/config.toml 分支(避免 APPDATA 路径)
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "setup"))
+    from server import configure_clients  # type: ignore
+
+    result = configure_clients(
+        provider="deepseek",
+        api_key="sk-test",
+        base_url="https://api.deepseek.com",
+        model="deepseek-v4-pro",
+        clients=["codex"],
+        method="python",
+        codex_base_url="http://127.0.0.1:7878",
+    )
+
+    import re
+    codex_toml = (tmp_path / ".codex" / "config.toml").read_text(encoding="utf-8")
+    assert "127.0.0.1:7878" in codex_toml
+    assert "OPENAI_COMPATIBLE_MCP_BASE_URL" in codex_toml
+    m = re.search(r'OPENAI_COMPATIBLE_MCP_BASE_URL\s*=\s*"([^"]+)"', codex_toml)
+    assert m and "127.0.0.1:7878" in m.group(1)
 
 
 if __name__ == "__main__":

@@ -12,20 +12,20 @@ from typing import Any, Iterable
 # works (OpenAI, Azure OpenAI, Together, Groq, OpenRouter, local llama.cpp, etc.)
 # ---------------------------------------------------------------------------
 DEFAULT_BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_MODEL = "deepseek-v4-pro"
 DEFAULT_TIMEOUT = 120.0
 
 # Friendly aliases so callers can ask for "deepseek-v4-flash" or "r1" without
 # needing to know the provider's exact model name.
 MODEL_ALIASES: dict[str, str] = {
     # DeepSeek
-    "deepseek-v4-flash": "deepseek-chat",
-    "deepseek-v4-pro": "deepseek-chat",
-    "deepseek-v3": "deepseek-chat",
-    "deepseek-chat": "deepseek-chat",
+    "deepseek-v4-pro": "deepseek-v4-pro",
+    "deepseek-v4-flash": "deepseek-v4-flash",
+    "deepseek-chat": "deepseek-v4-pro",
+    "deepseek-v3": "deepseek-v4-pro",
     "deepseek-reasoner": "deepseek-reasoner",
     "deepseek-r1": "deepseek-reasoner",
-    "deepseek-coder": "deepseek-chat",
+    "deepseek-coder": "deepseek-v4-pro",
     # OpenAI
     "gpt-4o": "gpt-4o",
     "gpt-4o-mini": "gpt-4o-mini",

@@ -43,7 +43,7 @@ PROVIDERS = {
     "deepseek": {
         "name": "DeepSeek",
         "default_base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat",
+        "default_model": "deepseek-v4-pro",
         "env_key": "DEEPSEEK_API_KEY",
         "key_prefix": "sk-",
         "key_help": "Get one at https://platform.deepseek.com/api_keys",
@@ -217,9 +217,14 @@ def _cursor_config_path() -> Path:
     return Path.home() / ".cursor" / "mcp.json"
 
 
-def _claude_code_settings_path() -> Path:
-    """Claude Code uses ~/.claude.json."""
+def _claude_code_mcp_path() -> Path:
+    """Claude Code reads mcpServers + onboarding state from ~/.claude.json."""
     return Path.home() / ".claude.json"
+
+
+def _claude_code_env_path() -> Path:
+    """Claude Code reads env vars (ANTHROPIC_BASE_URL etc.) from ~/.claude/settings.json."""
+    return Path.home() / ".claude" / "settings.json"
 
 
 def _codex_config_path() -> Path:
@@ -261,6 +266,7 @@ def configure_clients(
     model: str,
     clients: list[str],
     method: str = "uvx",  # "uvx" | "pipx" | "module" | "python"
+    codex_base_url: str = "",  # 单独给 Codex 用（本地代理 127.0.0.1:7878）
 ) -> dict:
     """Write config files for the requested MCP clients.
 
@@ -317,28 +323,64 @@ def configure_clients(
         written.append(str(p))
 
     if "claude_code" in clients:
-        p = _claude_code_settings_path()
+        # 1) ~/.claude.json -> mcpServers + 跳过登录引导
+        mcp_path = _claude_code_mcp_path()
         existing = {}
-        if p.exists():
+        if mcp_path.exists():
             try:
-                existing = json.loads(p.read_text(encoding="utf-8"))
+                existing = json.loads(mcp_path.read_text(encoding="utf-8"))
             except Exception:  # noqa: BLE001
                 existing = {}
-        merged = _merge_mcp_servers(existing, "openai-compatible", server_cfg)
-        _atomic_write_json(p, merged)
-        written.append(str(p))
+        merged_mcp = _merge_mcp_servers(existing, "openai-compatible", server_cfg)
+        merged_mcp["hasCompletedOnboarding"] = True
+        merged_mcp["numStartups"] = 99
+        _atomic_write_json(mcp_path, merged_mcp)
+        written.append(str(mcp_path))
+
+        # 2) ~/.claude/settings.json -> env 字段（ANTHROPIC_BASE_URL / AUTH_TOKEN / 模型别名等）
+        env_path = _claude_code_env_path()
+        existing_env = {}
+        if env_path.exists():
+            try:
+                existing_env = json.loads(env_path.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                existing_env = {}
+        env_cfg = dict(existing_env or {})
+        env_block = dict(env_cfg.get("env", {}) or {})
+        env_block.update({
+            "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+            "ANTHROPIC_AUTH_TOKEN": api_key,
+            "ANTHROPIC_API_KEY": "",
+            "ANTHROPIC_MODEL": model or "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": model or "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": model or "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": model or "deepseek-v4-pro",
+            "ANTHROPIC_SMALL_FAST_MODEL": model or "deepseek-v4-pro",
+            "CLAUDE_CODE_EFFORT_LEVEL": "max",
+        })
+        env_cfg["env"] = env_block
+        env_cfg["model"] = model or "deepseek-v4-pro"
+        env_cfg["skipIntroduction"] = True
+        env_cfg["skipWelcome"] = True
+        # 把 mcpServers 也写一份到 settings.json（部分版本会优先读这里）
+        mcp_in_env = _merge_mcp_servers(
+            {"mcpServers": env_cfg.get("mcpServers", {}) or {}},
+            "openai-compatible",
+            server_cfg,
+        )
+        env_cfg["mcpServers"] = mcp_in_env["mcpServers"]
+        _atomic_write_json(env_path, env_cfg)
+        written.append(str(env_path))
 
     if "codex" in clients:
         p = _codex_config_path()
         existing_text = ""
         if p.exists():
             existing_text = p.read_text(encoding="utf-8")
-        # We need to set OPENAI_COMPATIBLE_MCP_* env vars and have codex pick them up.
-        # Since codex reads the env from its own process, we instead point codex to the
-        # proxy (if running) or to a local OpenAI-compatible endpoint. For the wizard we
-        # write a TOML snippet that adds provider env via a launch wrapper. The simplest
-        # is to set base_url and instruct user to set the env var in their shell rc.
-        toml = _build_codex_toml(base_url, model, env_key, api_key)
+        # Codex 默认走本地代理 127.0.0.1:7878(走 D:\AItext\codex\proxy\ 下的 Flask 代理
+        # 把 Codex 格式翻译成 DeepSeek 格式);若用户没填,fallback 到主 base_url。
+        codex_url = (codex_base_url or "http://127.0.0.1:7878").rstrip("/")
+        toml = _build_codex_toml(codex_url, model, env_key, api_key)
         if existing_text and not existing_text.endswith("\n"):
             existing_text += "\n"
         if existing_text and "[mcp_servers.openai_compatible_mcp]" not in existing_text:
@@ -541,7 +583,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 body.get("provider", "deepseek"),
                 body.get("api_key", ""),
                 body.get("base_url", ""),
-                body.get("model", "deepseek-chat"),
+                body.get("model", "deepseek-v4-pro"),
             ))
             return
 
@@ -554,6 +596,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     model=body.get("model", ""),
                     clients=body.get("clients", []),
                     method=body.get("method", "uvx"),
+                    codex_base_url=body.get("codex_base_url", ""),
                 )
             except Exception as e:  # noqa: BLE001
                 self._send_json(500, {"ok": False, "error": str(e)})

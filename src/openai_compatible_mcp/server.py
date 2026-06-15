@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "openai-compatible-mcp"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +147,12 @@ class MCPServer:
     def run(self) -> None:
         """Block, reading JSON-RPC messages from stdin until EOF."""
         self._log(f"{self.name} v{self.version} listening on stdio")
+        self._log(
+            "提示: "
+            "如果在 Claude Desktop / Claude Code / Cursor 中 '未连接服务器', "
+            "请先执行 `python -m openai_compatible_mcp --install-config` "
+            "自动生成配置文件，然后重启客户端。"
+        )
         while True:
             try:
                 msg = _read()

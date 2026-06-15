@@ -654,7 +654,7 @@
             </div>
             <div class="field">
               <label class="field__label" for="model">模型名</label>
-              <input class="input" type="text" id="model" placeholder="deepseek-chat" value="deepseek-chat" />
+              <input class="input" type="text" id="model" placeholder="deepseek-v4-pro" value="deepseek-v4-pro" />
               <span class="field__hint" id="model-hint">常用的别名: deepseek-v4-flash / deepseek-r1</span>
             </div>
             <div class="field" id="baseUrlField" style="display: none;">
@@ -698,8 +698,8 @@
             <label class="check">
               <input type="checkbox" value="claude_code" />
               <div class="check__body">
-                <div class="check__name">Claude Code</div>
-                <div class="check__desc">~/.claude.json</div>
+                <div class="check__name">Claude Code (强烈推荐)</div>
+                <div class="check__desc">~/.claude.json + ~/.claude/settings.json (跳过登录 / 走 DeepSeek 网关)</div>
               </div>
             </label>
             <label class="check">
@@ -711,6 +711,11 @@
             </label>
           </div>
           <div class="form-grid" style="margin-top: 16px;">
+            <div class="field" id="codexBaseUrlField" style="display: none;">
+              <label class="field__label" for="codexBaseUrl">Codex 独立 Base URL (走本地代理)</label>
+              <input class="input" type="text" id="codexBaseUrl" placeholder="http://127.0.0.1:7878" value="http://127.0.0.1:7878" />
+              <span class="field__hint">Codex 必须经本地代理(默认 127.0.0.1:7878,见 proxy\start.bat);其它客户端走 DeepSeek 官方</span>
+            </div>
             <div class="field">
               <label class="field__label" for="launchMethod">启动方式</label>
               <select class="select" id="launchMethod">
@@ -939,6 +944,14 @@
       $('baseUrlField').style.display = (v === 'azure' || v === 'custom' || p.default_base_url === '') ? '' : 'none';
     }
     $('provider').addEventListener('change', () => { delete $('model').dataset.touched; delete $('baseUrl').dataset.touched; updateProviderHints(); });
+
+    // 勾选 Codex 时才显示独立 base URL 字段
+    function updateCodexBaseUrlVisibility() {
+      const checked = [...document.querySelectorAll('#client-list input:checked')].map(i => i.value);
+      $('codexBaseUrlField').style.display = checked.includes('codex') ? '' : 'none';
+    }
+    document.querySelectorAll('#client-list input').forEach(el => el.addEventListener('change', updateCodexBaseUrlVisibility));
+    updateCodexBaseUrlVisibility();
     $('model').addEventListener('input', () => { $('model').dataset.touched = '1'; });
     $('baseUrl').addEventListener('input', () => { $('baseUrl').dataset.touched = '1'; });
     $('toggleKey').addEventListener('click', () => {
@@ -955,7 +968,7 @@
         provider: $('provider').value,
         api_key: $('apiKey').value.trim(),
         base_url: $('baseUrl').value.trim(),
-        model: $('model').value.trim() || 'deepseek-chat',
+        model: $('model').value.trim() || 'deepseek-v4-pro',
       };
       if (!payload.api_key) { out.textContent = '请先填 API key'; out.style.color = 'var(--red)'; return; }
       buttonBusy(btn, true, '正在测试 ...');
@@ -985,9 +998,10 @@
         provider: $('provider').value,
         api_key: $('apiKey').value.trim(),
         base_url: $('baseUrl').value.trim(),
-        model: $('model').value.trim() || 'deepseek-chat',
+        model: $('model').value.trim() || 'deepseek-v4-pro',
         clients,
         method: $('launchMethod').value,
+        codex_base_url: $('codexBaseUrl').value.trim(),
       };
       if (!payload.api_key) {
         clearLog('apply-log');
@@ -1016,7 +1030,7 @@
     const RESTART_HINTS = {
       claude_desktop: { name: 'Claude Desktop', cmd: '完全退出后重新打开(Cmd+Q / 任务管理器结束进程)' },
       cursor:         { name: 'Cursor',        cmd: 'Cursor → Ctrl+Shift+P → "MCP: List Servers" → 刷新' },
-      claude_code:    { name: 'Claude Code',   cmd: '退出后重新启动 claude / claude code' },
+      claude_code:    { name: 'Claude Code',   cmd: '双击 setup\\claude-launch.cmd 启动(注入 DeepSeek 网关 env) — 或在终端运行 claude-launch' },
       codex:          { name: 'Codex CLI',     cmd: '重启 Codex 桌面客户端,或重开 codex 命令' },
     };
     function showDone(clients, payload) {
