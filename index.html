@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>openai-compatible-mcp · MCP 桥接 DeepSeek / OpenAI / 任意兼容端点</title>
+  <meta name="description" content="把任意 OpenAI 兼容的 API 接入 Claude Desktop、Cursor、Claude Code、Codex。DeepSeek / OpenAI / Azure / OpenRouter / Groq 全部支持。pip install 一行,完全本地运行。" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2338d3ff'/><path d='M10 12h12M10 16h12M10 20h8' stroke='%23000' stroke-width='2' stroke-linecap='round'/></svg>" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <meta property="og:title" content="openai-compatible-mcp · MCP 桥接任意 OpenAI 兼容 API" />
+  <meta property="og:description" content="一行 pip install 接入 Claude / Cursor / Codex。DeepSeek 默认。零三方依赖。Codex 走本地代理。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://xiaobaotalks.github.io/openai-compatible-mcp/" />
+  <meta name="theme-color" content="#07090f" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-0: #07090f;
+      --bg-1: #0c1019;
+      --bg-2: #11161f;
+      --bg-3: #161c28;
+      --surface: rgba(255, 255, 255, 0.025);
+      --surface-2: rgba(255, 255, 255, 0.04);
+      --surface-3: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #e6ebf2;
+      --text-soft: #b3bdcc;
+      --text-muted: #6b7585;
+      --text-faint: #4a5160;
+      --cyan: #38d3ff;
+      --cyan-soft: rgba(56, 211, 255, 0.18);
+      --cyan-glow: rgba(56, 211, 255, 0.35);
+      --violet: #b78bff;
+      --violet-soft: rgba(183, 139, 255, 0.18);
+      --green: #4ade80;
+      --green-soft: rgba(74, 222, 128, 0.16);
+      --amber: #f5c451;
+      --red: #ff6b6b;
+      --radius-lg: 20px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset,
+                     0 20px 40px -20px rgba(0,0,0,0.6),
+                     0 0 0 1px rgba(255,255,255,0.04);
+      --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'SF Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--text);
+      background: var(--bg-0);
+      line-height: 1.6;
+      font-feature-settings: "ss01", "cv01";
+      overflow-x: hidden;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ============ BACKGROUND ============ */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(1200px 700px at 8% -10%, rgba(56, 211, 255, 0.12), transparent 60%),
+        radial-gradient(900px 500px at 95% 5%, rgba(183, 139, 255, 0.10), transparent 60%),
+        radial-gradient(700px 700px at 50% 110%, rgba(56, 211, 255, 0.06), transparent 60%),
+        linear-gradient(180deg, var(--bg-0), var(--bg-1) 40%, var(--bg-0));
+    }
+    .bg::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse at center, black 0%, black 40%, transparent 80%);
+      opacity: 0.4;
+    }
+    .bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      mix-blend-mode: overlay;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ============ NAV ============ */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(180deg, var(--bg-0) 60%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .nav__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-soft);
+    }
+    .nav__logo {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--bg-0);
+      font-weight: 800;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      box-shadow: 0 4px 16px -4px var(--cyan-glow);
+    }
+    .nav__links { display: flex; gap: 4px; align-items: center; }
+    .nav__link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all 0.15s ease;
+    }
+    .nav__link:hover { color: var(--text); background: var(--surface); }
+    .nav__cta {
+      background: linear-gradient(135deg, var(--cyan), #6cbcff);
+      color: var(--bg-0) !important;
+      font-weight: 700;
+      padding: 8px 16px !important;
+      box-shadow: 0 4px 20px -8px var(--cyan-glow);
+    }
+    .nav__cta:hover { transform: translateY(-1px); }
+    .nav__links .nav__link[href*="github"]:not(.nav__cta)::before { content: ""; }
+
+    @media (max-width: 760px) {
+      .nav__links .nav__link:not(.nav__cta) { display: none; }
+    }
+
+    /* ============ HERO ============ */
+    .hero {
+      text-align: center;
+      padding: 56px 0 32px;
+    }
+    .hero__badges {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .badge.is-cyan { color: var(--cyan); border-color: var(--cyan-soft); background: var(--cyan-soft); }
+    .badge.is-violet { color: var(--violet); border-color: var(--violet-soft); background: var(--violet-soft); }
+    .badge.is-green { color: var(--green); border-color: var(--green-soft); background: var(--green-soft); }
+    .badge.is-amber { color: var(--amber); border-color: rgba(245, 196, 81, 0.18); background: rgba(245, 196, 81, 0.10); }
+    .badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .hero h1 {
+      font-size: clamp(40px, 7vw, 76px);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.0;
+      background: linear-gradient(180deg, #ffffff 0%, #b3bdcc 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 18px;
+    }
+    .hero h1 .accent {
+      background: linear-gradient(120deg, var(--cyan) 0%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero__sub {
+      color: var(--text-soft);
+      font-size: clamp(16px, 1.8vw, 19px);
+      max-width: 720px;
+      margin: 0 auto 32px;
+    }
+    .hero__cta {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 12px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+    }
+    .btn:hover { background: var(--surface-3); border-color: rgba(255,255,255,0.22); transform: translateY(-1px); }
+    .btn--primary {
+      background: linear-gradient(135deg, var(--cyan), #6cbcff);
+      color: #0a0e1a;
+      border: none;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 8px 24px -8px var(--cyan-glow);
+    }
+    .btn--primary:hover { box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 12px 32px -8px var(--cyan-glow); }
+
+    /* quickstart terminal */
+    .quickstart {
+      margin: 36px auto 0;
+      max-width: 760px;
+      background: #04060a;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 30px 60px -30px rgba(0,0,0,0.7);
+    }
+    .quickstart__bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border-bottom: 1px solid var(--border);
+    }
+    .quickstart__dot { width: 10px; height: 10px; border-radius: 50%; }
+    .quickstart__dot--r { background: #ff5f57; }
+    .quickstart__dot--y { background: #febc2e; }
+    .quickstart__dot--g { background: #28c840; }
+    .quickstart__label {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .quickstart__body {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--text-soft);
+      padding: 18px 20px 4px;
+    }
+    .quickstart__body .prompt { color: var(--cyan); user-select: none; }
+    .quickstart__body .ok { color: var(--green); }
+    .quickstart__body .dim { color: var(--text-muted); }
+    .quickstart__body .hl { color: var(--cyan); }
+    .quickstart__body .cmd-line { display: flex; gap: 10px; align-items: flex-start; padding: 2px 0; }
+    .quickstart__body .cmd-line > code { flex: 1; }
+    .quickstart__body .copyrow {
+      position: relative;
+    }
+    .quickstart__body .copyrow:hover .copybtn { opacity: 1; }
+    .copybtn {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .copybtn:hover { color: var(--text); border-color: var(--border-strong); }
+    .copybtn.copied { color: var(--green); border-color: var(--green-soft); opacity: 1; }
+
+    /* ============ TERMINAL BLOCK ============ */
+    .term {
+      background: #04060a;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    .term__bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border-bottom: 1px solid var(--border);
+    }
+    .term__bar .label {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .term__body {
+      padding: 16px 18px;
+      line-height: 1.7;
+      color: var(--text-soft);
+      overflow-x: auto;
+    }
+    .term__body .prompt { color: var(--cyan); }
+    .term__body .ok { color: var(--green); }
+    .term__body .dim { color: var(--text-muted); }
+    .term__body .hl { color: var(--cyan); }
+    .term__body .err { color: var(--red); }
+    .term__body .warn { color: var(--amber); }
+
+    /* ============ MOCKUP (wizard preview) ============ */
+    .mockup {
+      margin: 64px 0 48px;
+      position: relative;
+    }
+    .mockup::before {
+      content: "";
+      position: absolute;
+      inset: -40px -10px;
+      background: radial-gradient(ellipse at center, var(--cyan-glow) 0%, transparent 60%);
+      filter: blur(60px);
+      z-index: -1;
+    }
+    .window {
+      background: var(--bg-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 30px 60px -30px rgba(0,0,0,0.8);
+    }
+    .window__bar {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .window__dot {
+      width: 11px; height: 11px; border-radius: 50%;
+    }
+    .window__dot--r { background: #ff5f57; }
+    .window__dot--y { background: #febc2e; }
+    .window__dot--g { background: #28c840; }
+    .window__url {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .window__body {
+      padding: 28px 32px;
+    }
+
+    .mockup__step {
+      display: flex;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      background: var(--surface);
+    }
+    .mockup__step.is-active {
+      border-color: var(--cyan-soft);
+      background: var(--surface-2);
+      box-shadow: 0 0 24px -8px var(--cyan-glow);
+    }
+    .mockup__step.is-done { border-color: var(--green-soft); }
+    .mockup__num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-1);
+      border: 1px solid var(--border-strong);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 600; font-size: 13px;
+      color: var(--text-soft);
+      flex-shrink: 0;
+    }
+    .mockup__step.is-active .mockup__num {
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      border: none;
+      color: var(--bg-0);
+    }
+    .mockup__step.is-done .mockup__num { background: var(--green); border: none; color: var(--bg-0); }
+    .mockup__step.is-done .mockup__num::after { content: "✓"; }
+    .mockup__step.is-done .mockup__num .n { display: none; }
+
+    .mockup__title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    .mockup__meta { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+    .mockup__row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text-soft);
+      font-family: var(--font-mono);
+    }
+    .mockup__dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      flex-shrink: 0;
+    }
+    .mockup__dot.is-pending { background: var(--text-faint); box-shadow: none; }
+    .mockup__btn {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--cyan), #6cbcff);
+      color: var(--bg-0);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .mockup__pillrow {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+    }
+    .mockup__pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-3);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+    .mockup__pill.is-on {
+      background: var(--cyan-soft);
+      border-color: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
+    /* ============ SECTION ============ */
+    section.block { padding: 72px 0; }
+    .block__head { text-align: center; max-width: 680px; margin: 0 auto 48px; }
+    .block__eyebrow {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .block__title {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #fff, #b3bdcc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .block__desc { color: var(--text-soft); font-size: 16px; }
+
+    /* ============ FEATURE TILES ============ */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 900px) { .features { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+    .feature {
+      padding: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+    .feature:hover { background: var(--surface-2); border-color: var(--border-strong); transform: translateY(-2px); }
+    .feature__icon {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    .feature.is-cyan .feature__icon { background: var(--cyan-soft); color: var(--cyan); }
+    .feature.is-violet .feature__icon { background: var(--violet-soft); color: var(--violet); }
+    .feature.is-green .feature__icon { background: var(--green-soft); color: var(--green); }
+    .feature.is-amber .feature__icon { background: rgba(245, 196, 81, 0.16); color: var(--amber); }
+    .feature__title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+    .feature__desc { color: var(--text-soft); font-size: 14px; }
+
+    /* ============ STEPS ============ */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 800px) { .steps { grid-template-columns: 1fr; } }
+    .step-card {
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+    .step-card:hover { background: var(--surface-2); border-color: var(--border-strong); transform: translateY(-2px); }
+    .step-card__num {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .step-card__title { font-weight: 700; font-size: 17px; margin-bottom: 6px; }
+    .step-card__desc { color: var(--text-soft); font-size: 14px; }
+
+    /* ============ PROVIDERS / CLIENTS ============ */
+    .providers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 800px) { .providers { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .providers { grid-template-columns: 1fr; } }
+    .provider {
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .provider:hover { background: var(--surface-2); border-color: var(--border-strong); transform: translateY(-2px); }
+    .provider__logo {
+      width: 38px; height: 38px;
+      border-radius: 9px;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700; font-size: 13px;
+      color: var(--text-soft);
+      flex-shrink: 0;
+    }
+    .provider__name { font-weight: 600; font-size: 14px; }
+    .provider__hint { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .provider--deepseek .provider__logo { background: linear-gradient(135deg, #4d8aff, #38d3ff); color: white; }
+    .provider--openai .provider__logo { background: #10a37f; color: white; }
+    .provider--azure .provider__logo { background: linear-gradient(135deg, #0078d4, #50a3ff); color: white; }
+    .provider--openrouter .provider__logo { background: linear-gradient(135deg, #b78bff, #6c5ce7); color: white; }
+    .provider--groq .provider__logo { background: #f55036; color: white; }
+    .provider--custom .provider__logo { background: var(--surface-2); color: var(--text-soft); }
+    .provider--deepseek::after, .provider--openai::after, .provider--azure::after, .provider--openrouter::after, .provider--groq::after { content: "★"; margin-left: auto; color: var(--amber); font-size: 13px; }
+
+    .clients {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 600px) { .clients { grid-template-columns: 1fr; } }
+    .client {
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .client__icon {
+      width: 40px; height: 40px;
+      border-radius: 9px;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .client__name { font-weight: 600; font-size: 15px; }
+    .client__hint { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px; }
+    .client__tag {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
+    /* ============ COMPARE / FOOTER ============ */
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 800px) { .compare { grid-template-columns: 1fr; } }
+    .compare__card {
+      padding: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .compare__title { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+    .compare__card--good .compare__title { color: var(--green); }
+    .compare__card--bad .compare__title { color: var(--text-muted); }
+    .compare__list { list-style: none; }
+    .compare__list li {
+      font-size: 14px;
+      color: var(--text-soft);
+      padding: 5px 0 5px 22px;
+      position: relative;
+    }
+    .compare__list li::before {
+      position: absolute; left: 0; top: 5px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+    .compare__card--good .compare__list li::before { content: "✓"; color: var(--green); }
+    .compare__card--bad .compare__list li::before { content: "✗"; color: var(--text-faint); }
+
+    footer {
+      padding: 50px 0 40px;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .foot a { color: var(--text-soft); text-decoration: none; }
+    .foot a:hover { color: var(--text); }
+    .foot__links { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    /* ============ WHAT'S NEW STRIP ============ */
+    .whatsnew {
+      margin: 16px auto 0;
+      max-width: 880px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: linear-gradient(135deg, rgba(56, 211, 255, 0.08), rgba(183, 139, 255, 0.06));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      flex-wrap: wrap;
+    }
+    .whatsnew__tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: var(--bg-0);
+      font-weight: 700;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .whatsnew__items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      flex: 1;
+      min-width: 0;
+    }
+    .whatsnew__item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+    .whatsnew__item b { color: var(--text); font-weight: 600; }
+    .whatsnew__item .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 6px var(--cyan);
+      flex-shrink: 0;
+    }
+
+    /* ============ ARCH / FLOW ============ */
+    .arch {
+      margin: 0 auto;
+      max-width: 920px;
+      padding: 32px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    .arch::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(800px 300px at 50% -20%, var(--cyan-soft), transparent 60%);
+      pointer-events: none;
+    }
+    .arch__row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    @media (max-width: 720px) {
+      .arch__row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .arch__arrow { transform: rotate(90deg); }
+    }
+    .arch__node {
+      padding: 16px 18px;
+      background: var(--bg-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      text-align: center;
+      position: relative;
+    }
+    .arch__node.is-hot {
+      background: linear-gradient(180deg, rgba(56, 211, 255, 0.10), rgba(56, 211, 255, 0.02));
+      border-color: var(--cyan-soft);
+    }
+    .arch__node.is-violet {
+      background: linear-gradient(180deg, rgba(183, 139, 255, 0.10), rgba(183, 139, 255, 0.02));
+      border-color: var(--violet-soft);
+    }
+    .arch__name {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .arch__sub {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .arch__emoji {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      background: var(--surface-3);
+      font-size: 14px;
+    }
+    .arch__node.is-hot .arch__emoji { background: var(--cyan-soft); }
+    .arch__node.is-violet .arch__emoji { background: var(--violet-soft); }
+    .arch__arrow {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 18px;
+      text-align: center;
+      position: relative;
+    }
+    .arch__arrow .lbl {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+    .arch__caption {
+      margin-top: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+    .arch__caption b { color: var(--cyan); font-weight: 600; }
+
+    /* ============ FAQ ============ */
+    .faq {
+      max-width: 820px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+    .faq__item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .faq__item.is-open {
+      border-color: var(--cyan-soft);
+      background: var(--surface-2);
+    }
+    .faq__q {
+      width: 100%;
+      appearance: none;
+      background: transparent;
+      border: 0;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      text-align: left;
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .faq__q:hover { color: var(--cyan); }
+    .faq__q .toggle {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--surface-3);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-soft);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .faq__item.is-open .faq__q .toggle {
+      transform: rotate(45deg);
+      background: var(--cyan);
+      color: var(--bg-0);
+    }
+    .faq__a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+    .faq__a-inner {
+      padding: 0 20px 18px;
+      color: var(--text-soft);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .faq__a-inner code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--bg-3);
+      color: var(--cyan);
+    }
+    .faq__item.is-open .faq__a { max-height: 360px; }
+
+    /* scroll-in */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <div class="container">
+
+    <nav class="nav">
+      <div class="nav__brand">
+        <div class="nav__logo">MC</div>
+        <span>openai-compatible-mcp</span>
+      </div>
+      <div class="nav__links">
+        <a class="nav__link" href="#why">特性</a>
+        <a class="nav__link" href="#quick">快速开始</a>
+        <a class="nav__link" href="#arch">架构</a>
+        <a class="nav__link" href="#providers">提供商</a>
+        <a class="nav__link" href="#faq">FAQ</a>
+        <a class="nav__link" href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">GitHub</a>
+        <a class="nav__link nav__cta" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">★ PyPI</a>
+      </div>
+    </nav>
+
+    <!-- ==================== HERO ==================== -->
+    <header class="hero">
+      <div class="hero__badges">
+        <span class="badge is-cyan"><span class="badge__dot"></span>MIT</span>
+        <span class="badge is-green">v0.2.9</span>
+        <span class="badge is-violet">零三方依赖</span>
+        <span class="badge is-amber">Codex + Claude Code 适配</span>
+        <span class="badge">Python 3.9+</span>
+      </div>
+
+      <h1>一行 <span class="accent">pip install</span><br>把 MCP 接到 DeepSeek / 任意兼容端点</h1>
+      <p class="hero__sub">
+        图形化向导,本地跑,零三方依赖。<br>
+        支持 <b>Claude Desktop</b> · <b>Cursor</b> · <b>Claude Code</b> · <b>Codex CLI</b>。Codex 走内置翻译代理,Claude Code 直接跳过登录。
+      </p>
+
+      <div class="hero__cta">
+        <a class="btn btn--primary" href="https://github.com/xiaobaotalks/openai-compatible-mcp#quick-start" target="_blank">
+          ★ GitHub 一键启动
+        </a>
+        <a class="btn" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">
+          pip install openai-compatible-mcp
+        </a>
+      </div>
+
+      <!-- quickstart terminal -->
+      <div class="quickstart">
+        <div class="quickstart__bar">
+          <span class="quickstart__dot quickstart__dot--r"></span>
+          <span class="quickstart__dot quickstart__dot--y"></span>
+          <span class="quickstart__dot quickstart__dot--g"></span>
+          <span class="quickstart__label">Windows / macOS / Linux · PowerShell &amp; bash</span>
+        </div>
+        <div class="quickstart__body">
+          <div class="cmd-line copyrow">
+            <span class="prompt">$</span>
+            <code id="q1">pip install openai-compatible-mcp</code>
+            <button class="copybtn" data-copy="q1">复制</button>
+          </div>
+          <div class="cmd-line"><span class="dim">Successfully installed openai-compatible-mcp-0.2.9</span></div>
+          <div class="cmd-line copyrow">
+            <span class="prompt">$</span>
+            <code id="q2">openai-compatible-mcp</code>
+            <button class="copybtn" data-copy="q2">复制</button>
+          </div>
+          <div class="cmd-line"><span class="ok">→</span> <span class="hl">浏览器自动打开</span> <span class="dim">http://127.0.0.1:8989</span></div>
+          <div class="cmd-line"><span class="dim">  填 API Key → 选 Claude / Codex → 点"写配置" → 完成</span></div>
+        </div>
+      </div>
+
+      <div class="whatsnew">
+        <span class="whatsnew__tag">v0.2.9</span>
+        <div class="whatsnew__items">
+          <span class="whatsnew__item"><span class="dot"></span><b>--proxy --api-key</b> 临时注入</span>
+          <span class="whatsnew__item"><span class="dot"></span>proxy 友好 <code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg-3);color:var(--cyan);">/</code> 页</span>
+          <span class="whatsnew__item"><span class="dot"></span>缺 Key 三步修复提示</span>
+          <span class="whatsnew__item"><span class="dot"></span>Codex · Claude Code 适配</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== MOCKUP ==================== -->
+    <div class="mockup reveal">
+      <div class="window">
+        <div class="window__bar">
+          <span class="window__dot window__dot--r"></span>
+          <span class="window__dot window__dot--y"></span>
+          <span class="window__dot window__dot--g"></span>
+          <span class="window__url">http://127.0.0.1:8989/ — openai-compatible-mcp 向导</span>
+        </div>
+        <div class="window__body">
+          <div class="mockup__step is-done">
+            <div class="mockup__num"><span class="n">1</span></div>
+            <div>
+              <div class="mockup__title">环境自检</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>Python 3.12.1</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>openai-compatible-mcp v0.2.9</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>已检测 Claude Desktop / Cursor / Claude Code 路径</div>
+            </div>
+          </div>
+          <div class="mockup__step is-done">
+            <div class="mockup__num"><span class="n">2</span></div>
+            <div>
+              <div class="mockup__title">配置 API 提供商</div>
+              <div class="mockup__meta" style="margin-bottom: 6px;">DeepSeek · deepseek-v4-pro</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>API Key: sk-127d•••••••••••••689</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>测试连接: <span style="color:var(--green);">✓ DeepSeek 已就绪</span></div>
+            </div>
+          </div>
+          <div class="mockup__step is-active">
+            <div class="mockup__num"><span class="n">3</span></div>
+            <div>
+              <div class="mockup__title">选择 MCP 客户端</div>
+              <div class="mockup__pillrow">
+                <span class="mockup__pill is-on">Claude Desktop</span>
+                <span class="mockup__pill is-on">Cursor</span>
+                <span class="mockup__pill is-on">Claude Code</span>
+                <span class="mockup__pill is-on">Codex CLI</span>
+              </div>
+              <div class="mockup__row" style="margin-top: 8px;">
+                <span class="mockup__dot"></span>Codex 走本地代理 127.0.0.1:7878
+              </div>
+            </div>
+          </div>
+          <div class="mockup__step">
+            <div class="mockup__num"><span class="n">4</span></div>
+            <div>
+              <div class="mockup__title">一键写入配置</div>
+              <div class="mockup__row"><span class="mockup__btn">写配置</span> <span class="mockup__dot is-pending"></span> 等待点击</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== WHY / FEATURES ==================== -->
+    <section class="block reveal" id="why">
+      <div class="block__head">
+        <div class="block__eyebrow">// 为什么用</div>
+        <h2 class="block__title">不是又一个 MCP 模板,是真能跑的工具集</h2>
+        <p class="block__desc">所有边界情况(模型别名、env 注入、流式响应、客户端差异)都已经在 0.2.x 处理掉。</p>
+      </div>
+
+      <div class="features">
+        <div class="feature is-cyan">
+          <div class="feature__icon">⚡</div>
+          <div class="feature__title">Codex 即开即用</div>
+          <div class="feature__desc">内置翻译代理(Flask)自动装,启动后 Codex 直接用 deepseek 模型,免登免配。</div>
+        </div>
+        <div class="feature is-violet">
+          <div class="feature__icon">🪄</div>
+          <div class="feature__title">Claude Code 跳过登录</div>
+          <div class="feature__desc">双写 <code>~/.claude.json</code> + <code>~/.claude/settings.json</code>,ANTHROPIC_BASE_URL 直达 DeepSeek。</div>
+        </div>
+        <div class="feature is-green">
+          <div class="feature__icon">📦</div>
+          <div class="feature__title">pip install 即可</div>
+          <div class="feature__desc">向导、翻译代理、Claude 启动器都打进包,<code>pip install</code> 一次拿全。</div>
+        </div>
+        <div class="feature is-amber">
+          <div class="feature__icon">🔒</div>
+          <div class="feature__title">零三方依赖</div>
+          <div class="feature__desc">MCP 协议实现只用 Python 标准库(可选依赖只有代理的 flask / httpx)。</div>
+        </div>
+        <div class="feature is-cyan">
+          <div class="feature__icon">🛠️</div>
+          <div class="feature__title">配置合并式</div>
+          <div class="feature__desc">写入 MCP 客户端时保留你现有的其它 server,不会覆盖 <code>mcpServers</code>。</div>
+        </div>
+        <div class="feature is-violet">
+          <div class="feature__icon">🌐</div>
+          <div class="feature__title">6+ 提供商</div>
+          <div class="feature__desc">DeepSeek / OpenAI / Azure / OpenRouter / Groq / 自定义;只要有 <code>/v1/chat/completions</code> 就能用。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== QUICK START ==================== -->
+    <section class="block reveal" id="quick">
+      <div class="block__head">
+        <div class="block__eyebrow">// 快速开始</div>
+        <h2 class="block__title">装包 → 跑向导 → 选客户端,完事</h2>
+      </div>
+
+      <div class="steps" style="grid-template-columns: 1fr; max-width: 820px; margin: 0 auto;">
+        <div class="step-card">
+          <div class="step-card__num">A</div>
+          <div class="step-card__title">标准流程(Claude / Cursor)</div>
+          <div class="step-card__desc" style="margin-bottom: 14px;">一条命令装包,再一条命令起向导,浏览器自动开。</div>
+          <div class="term">
+            <div class="term__bar">
+              <span class="quickstart__dot quickstart__dot--r"></span>
+              <span class="quickstart__dot quickstart__dot--y"></span>
+              <span class="quickstart__dot quickstart__dot--g"></span>
+              <span class="label">PowerShell</span>
+            </div>
+            <div class="term__body">
+<div><span class="prompt">PS&gt;</span> pip install openai-compatible-mcp</div>
+<div><span class="prompt">PS&gt;</span> openai-compatible-mcp</div>
+<div><span class="ok">→</span> <span class="hl">浏览器自动打开</span> http://127.0.0.1:8989</div>
+<div>&nbsp;</div>
+<div><span class="dim"># 填 DeepSeek API Key → 点"测试连接" → 勾 Claude / Cursor → 写配置</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">B</div>
+          <div class="step-card__title">Codex CLI(走本地代理)</div>
+          <div class="step-card__desc" style="margin-bottom: 14px;">向导写 <code>~/.codex/config.toml</code>,然后 <code>openai-compatible-mcp-proxy</code> 起翻译代理,再 <code>codex</code>。</div>
+          <div class="term">
+            <div class="term__bar">
+              <span class="quickstart__dot quickstart__dot--r"></span>
+              <span class="quickstart__dot quickstart__dot--y"></span>
+              <span class="quickstart__dot quickstart__dot--g"></span>
+              <span class="label">Terminal A (proxy)</span>
+            </div>
+            <div class="term__body">
+<div><span class="prompt">$</span> openai-compatible-mcp-proxy</div>
+<div><span class="ok">→</span> Proxy listening on http://127.0.0.1:7878</div>
+<div><span class="dim">  Forwarding to https://api.deepseek.com/v1/chat/completions</span></div>
+            </div>
+          </div>
+          <div class="term" style="margin-top: 10px;">
+            <div class="term__bar">
+              <span class="quickstart__dot quickstart__dot--r"></span>
+              <span class="quickstart__dot quickstart__dot--y"></span>
+              <span class="quickstart__dot quickstart__dot--g"></span>
+              <span class="label">Terminal B (codex)</span>
+            </div>
+            <div class="term__body">
+<div><span class="prompt">$</span> codex</div>
+<div><span class="ok">→</span> <span class="hl">✓</span> loaded mcp tool <span class="hl">chat</span> / <span class="hl">list_models</span></div>
+<div><span class="ok">→</span> <span class="hl">✓</span> using <span class="hl">deepseek-v4-pro</span> via 127.0.0.1:7878</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">C</div>
+          <div class="step-card__title">Claude Code(跳过登录)</div>
+          <div class="step-card__desc" style="margin-bottom: 14px;">向导在 <code>~/.claude.json</code> + <code>~/.claude/settings.json</code> 写好 env 和 <code>hasCompletedOnboarding=true</code>,Claude Code 直接跳过登录弹窗。</div>
+          <div class="term">
+            <div class="term__bar">
+              <span class="quickstart__dot quickstart__dot--r"></span>
+              <span class="quickstart__dot quickstart__dot--y"></span>
+              <span class="quickstart__dot quickstart__dot--g"></span>
+              <span class="label">Wrapper</span>
+            </div>
+            <div class="term__body">
+<div><span class="prompt">$</span> claude-launch       <span class="dim"># setup/claude-launch.cmd,自动注入 ANTHROPIC_BASE_URL</span></div>
+<div><span class="ok">→</span> 走 DeepSeek 网关: <span class="hl">https://api.deepseek.com/anthropic</span></div>
+<div><span class="ok">→</span> 启动 claude: <span class="hl">deepseek-v4-pro</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== HOW IT WORKS ==================== -->
+    <section class="block reveal" id="how">
+      <div class="block__head">
+        <div class="block__eyebrow">// 工作流</div>
+        <h2 class="block__title">三步,从零到能聊</h2>
+        <p class="block__desc">不是抽象的"Configure your MCP server"。是点几下鼠标,看到日志里跑出来 ✓。</p>
+      </div>
+
+      <div class="steps">
+        <div class="step-card">
+          <div class="step-card__num">01</div>
+          <div class="step-card__title">装包,起向导</div>
+          <div class="step-card__desc">一行 <code>pip install</code>,再一行 <code>openai-compatible-mcp</code>,浏览器自动开 127.0.0.1:8989。</div>
+        </div>
+        <div class="step-card">
+          <div class="step-card__num">02</div>
+          <div class="step-card__title">填 API key,点"测试连接"</div>
+          <div class="step-card__desc">从下拉里选 DeepSeek / OpenAI / Azure / OpenRouter / Groq / 自定义,粘 key,点一下就发请求验通。</div>
+        </div>
+        <div class="step-card">
+          <div class="step-card__num">03</div>
+          <div class="step-card__title">勾选客户端,一键写入</div>
+          <div class="step-card__desc">向导自动改对应配置文件,不覆盖你现有的其他 MCP server。重启客户端,搞定。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ARCHITECTURE ==================== -->
+    <section class="block reveal" id="arch">
+      <div class="block__head">
+        <div class="block__eyebrow">// 架构</div>
+        <h2 class="block__title">Codex 走的是本地代理,而不是裸转发</h2>
+        <p class="block__desc">Codex CLI 默认发 <code>/v1/responses</code> 格式,DeepSeek 走 <code>/v1/chat/completions</code>。<b style="color:var(--cyan);">openai-compatible-mcp-proxy</b> 在中间做协议翻译,免登免配。</p>
+      </div>
+
+      <div class="arch">
+        <div class="arch__row">
+          <div class="arch__node">
+            <div class="arch__name"><span class="arch__emoji">🤖</span> Codex CLI</div>
+            <div class="arch__sub">~/.codex/config.toml</div>
+          </div>
+          <div class="arch__arrow">→<span class="lbl">POST /v1/responses</span></div>
+          <div class="arch__node is-hot">
+            <div class="arch__name"><span class="arch__emoji">⚡</span> 本地代理</div>
+            <div class="arch__sub">127.0.0.1:7878 · Flask</div>
+          </div>
+          <div class="arch__arrow">→<span class="lbl">POST /v1/chat/completions</span></div>
+          <div class="arch__node is-violet">
+            <div class="arch__name"><span class="arch__emoji">🧠</span> DeepSeek</div>
+            <div class="arch__sub">api.deepseek.com</div>
+          </div>
+        </div>
+        <div class="arch__caption">
+          同样的 MCP 工具,同样的 <b>deepseek-v4-pro</b> · 流式响应 · 函数调用 · 上下文压缩 全部由代理透明翻译
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PROVIDERS ==================== -->
+    <section class="block reveal" id="providers">
+      <div class="block__head">
+        <div class="block__eyebrow">// 兼容的提供商</div>
+        <h2 class="block__title">支持 6 个内置提供商,以及任何 OpenAI 兼容端点</h2>
+        <p class="block__desc">只要暴露 <code>/v1/chat/completions</code> 就能用。OpenAI 官方、Azure、OpenRouter、Groq、Together、llama.cpp、vLLM、LM Studio、本地 Ollama 走 OpenAI 兼容模式,全部支持。</p>
+      </div>
+
+      <div class="providers">
+        <div class="provider provider--deepseek">
+          <div class="provider__logo">DS</div>
+          <div>
+            <div class="provider__name">DeepSeek</div>
+            <div class="provider__hint">api.deepseek.com</div>
+          </div>
+        </div>
+        <div class="provider provider--openai">
+          <div class="provider__logo">OA</div>
+          <div>
+            <div class="provider__name">OpenAI</div>
+            <div class="provider__hint">api.openai.com</div>
+          </div>
+        </div>
+        <div class="provider provider--azure">
+          <div class="provider__logo">AZ</div>
+          <div>
+            <div class="provider__name">Azure OpenAI</div>
+            <div class="provider__hint">*.openai.azure.com</div>
+          </div>
+        </div>
+        <div class="provider provider--openrouter">
+          <div class="provider__logo">OR</div>
+          <div>
+            <div class="provider__name">OpenRouter</div>
+            <div class="provider__hint">openrouter.ai</div>
+          </div>
+        </div>
+        <div class="provider provider--groq">
+          <div class="provider__logo">GQ</div>
+          <div>
+            <div class="provider__name">Groq</div>
+            <div class="provider__hint">api.groq.com</div>
+          </div>
+        </div>
+        <div class="provider provider--custom">
+          <div class="provider__logo">+</div>
+          <div>
+            <div class="provider__name">自定义 / 本地</div>
+            <div class="provider__hint">任意 OpenAI 兼容服务</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== CLIENTS ==================== -->
+    <section class="block reveal" id="clients">
+      <div class="block__head">
+        <div class="block__eyebrow">// 兼容的 MCP 客户端</div>
+        <h2 class="block__title">一次配置,四个客户端都能用</h2>
+      </div>
+
+      <div class="clients">
+        <div class="client">
+          <div class="client__icon">💬</div>
+          <div>
+            <div class="client__name">Claude Desktop</div>
+            <div class="client__hint">~/Library/Application Support/Claude/</div>
+          </div>
+        </div>
+        <div class="client">
+          <div class="client__icon">⚡</div>
+          <div>
+            <div class="client__name">Cursor</div>
+            <div class="client__hint">~/.cursor/mcp.json</div>
+          </div>
+        </div>
+        <div class="client">
+          <div class="client__icon">⌨️</div>
+          <div>
+            <div class="client__name">Claude Code</div>
+            <div class="client__hint">~/.claude.json · ~/.claude/settings.json</div>
+          </div>
+          <span class="client__tag">跳过登录</span>
+        </div>
+        <div class="client">
+          <div class="client__icon">🤖</div>
+          <div>
+            <div class="client__name">Codex CLI</div>
+            <div class="client__hint">~/.codex/config.toml</div>
+          </div>
+          <span class="client__tag">本地代理</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== FAQ ==================== -->
+    <section class="block reveal" id="faq">
+      <div class="block__head">
+        <div class="block__eyebrow">// 常见问题</div>
+        <h2 class="block__title">装包前你可能想知道的</h2>
+      </div>
+
+      <div class="faq">
+        <div class="faq__item">
+          <button class="faq__q" type="button">它和官方 MCP Python SDK 是什么关系?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            没有关系。stdio JSON-RPC 2.0 帧解析用 <code>__main__.py</code> + <code>server.py</code> 共 ~300 行纯标准库代码实现,零三方依赖,所以 <code>pip install</code> 一行就能跑。代理层(<code>proxy_server.py</code>)只在启动 <code>openai-compatible-mcp-proxy</code> 时按需 <code>pip install flask httpx</code>。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">API Key 存哪里?会被上传吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。Key 通过向导写入 <code>%USERPROFILE%/.openai_compatible_mcp/config.json</code>(Windows)或 <code>~/.config/openai-compatible-mcp/config.json</code>(macOS / Linux),只在本机读写,从不外发。Codex 走本地代理时,Key 也只在 <code>127.0.0.1:7878</code> 这个本地回环里使用,直接转发到 DeepSeek 官方域名。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Codex 翻译代理会同时启动两个进程吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。代理在启动前会先扫描 <code>127.0.0.1:7878</code> 端口是否被占用,若已有一个实例在跑就直接复用,不会重复拉起。Codex CLI 端只信任本地回环,不会暴露到外网。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Claude Code 怎么跳过 Anthropic 登录?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            向导会同时写 <code>~/.claude.json</code> 和 <code>~/.claude/settings.json</code>,把 <code>hasCompletedOnboarding</code> 设为 <code>true</code>,并注入 <code>ANTHROPIC_BASE_URL</code> 指向 DeepSeek 的 Anthropic 兼容端点。下次启动 <code>claude</code> 不会再弹登录页。<code>setup/claude-launch.cmd</code>(Windows)/ <code>setup/claude-launch.sh</code>(macOS / Linux)进一步把这一过程包成一个命令 <code>claude-launch</code>。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">已经装过其他 MCP server,会被覆盖吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。写入 <code>mcpServers</code> / <code>mcp_servers</code> 时走"读 → 合并 → 写"流程,本包只新增 <code>openai-compatible-mcp</code> 这一项,你原有的 server 全部保留。卸载时(<code>pip uninstall</code>)也会从配置里把对应条目一并清掉,不留垃圾。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">想用自己跑的 llama.cpp / vLLM / Ollama,可以吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            可以。向导里选 <b>自定义</b>,把 <code>base_url</code> 填成 <code>http://127.0.0.1:11434/v1</code>(Ollama 兼容模式)或 <code>http://127.0.0.1:8080/v1</code>(llama.cpp server)即可。只要它暴露 <code>/v1/chat/completions</code> 就直接接得上,模型名也可以在 <code>config.json</code> 里随便写。
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VS MANUAL ==================== -->
+    <section class="block reveal" id="compare">
+      <div class="block__head">
+        <div class="block__eyebrow">// vs 自己手搓</div>
+        <h2 class="block__title">为什么要用这个</h2>
+      </div>
+
+      <div class="compare">
+        <div class="compare__card compare__card--good">
+          <div class="compare__title">用 openai-compatible-mcp</div>
+          <ul class="compare__list">
+            <li>图形化向导,鼠标点完事</li>
+            <li>支持 6+ 提供商,默认 DeepSeek</li>
+            <li>stdio JSON-RPC 2.0,自实现,无依赖</li>
+            <li>Codex / Claude Code 适配已写好</li>
+            <li>配置是合并式,不动你其他 MCP</li>
+            <li>代理 / launcher 都打进包</li>
+          </ul>
+        </div>
+        <div class="compare__card compare__card--bad">
+          <div class="compare__title">手搓 MCP server</div>
+          <ul class="compare__list">
+            <li>读 MCP 协议规范,写 JSON-RPC 帧解析</li>
+            <li>每个客户端改不同位置的 JSON</li>
+            <li>重命名模型字段、写流式 SSE 解析</li>
+            <li>Codex 的 Responses API 不兼容要写翻译层</li>
+            <li>Claude Code env 注入要双写两个文件</li>
+            <li>测试每个客户端的认证流</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="foot">
+        <div>openai-compatible-mcp · MIT License · v0.2.9</div>
+        <div class="foot__links">
+          <a href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">GitHub</a>
+          <a href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">PyPI</a>
+          <a href="https://github.com/xiaobaotalks/openai-compatible-mcp/blob/main/README.md" target="_blank">README</a>
+          <a href="https://github.com/xiaobaotalks/openai-compatible-mcp/blob/main/setup/README.md" target="_blank">向导文档</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // copy buttons (delegated, both .copybtn and .copy)
+    function bindCopyButtons() {
+      document.addEventListener('click', (e) => {
+        const t = e.target.closest('.copybtn, .copy');
+        if (!t) return;
+        const id = t.dataset.copy;
+        const target = id ? document.getElementById(id) : null;
+        let text;
+        if (target) {
+          text = target.textContent;
+        } else {
+          // fallback: try closest <code> sibling
+          const code = t.parentElement && t.parentElement.querySelector('code');
+          text = code ? code.textContent : '';
+        }
+        if (!text) return;
+        const orig = t.textContent;
+        t.textContent = '已复制';
+        t.classList.add('copied');
+        navigator.clipboard.writeText(text).catch(() => {});
+        setTimeout(() => { t.textContent = orig; t.classList.remove('copied'); }, 1200);
+      });
+    }
+    bindCopyButtons();
+
+    // scroll reveal (with reduced-motion guard)
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersReduced && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+        }
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    } else {
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+    }
+
+    // FAQ accordion
+    document.querySelectorAll('.faq__q').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.faq__item');
+        if (!item) return;
+        item.classList.toggle('is-open');
+      });
+    });
+  </script>
+</body>
+</html>
