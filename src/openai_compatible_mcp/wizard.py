@@ -39,6 +39,7 @@ PYPI_URL = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
 # 在 PyPI 装的包里,wizard.py 跟 wizard_index.html 在同一目录 (site-packages/.../wizard_index.html)
 # 在开发仓库里,也可能走 setup/index.html(兼容老 setup/server.py)。
 _WIZARD_DIR = Path(__file__).resolve().parent
+WIZARD_DIR = _WIZARD_DIR  # 兼容老 setup/ 目录里用 WIZARD_DIR 的代码
 _BUNDLED_HTML = _WIZARD_DIR / "wizard_index.html"
 _DEV_HTML = _WIZARD_DIR.parent.parent.parent / "setup" / "index.html"
 INDEX_HTML = _BUNDLED_HTML if _BUNDLED_HTML.exists() else _DEV_HTML
