@@ -43,7 +43,7 @@ PROVIDERS = {
     "deepseek": {
         "name": "DeepSeek",
         "default_base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat",
+        "default_model": "deepseek-v4-pro",
         "env_key": "DEEPSEEK_API_KEY",
         "key_prefix": "sk-",
         "key_help": "Get one at https://platform.deepseek.com/api_keys",
@@ -541,7 +541,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 body.get("provider", "deepseek"),
                 body.get("api_key", ""),
                 body.get("base_url", ""),
-                body.get("model", "deepseek-chat"),
+                body.get("model", "deepseek-v4-pro"),
             ))
             return
 

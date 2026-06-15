@@ -654,7 +654,7 @@
             </div>
             <div class="field">
               <label class="field__label" for="model">模型名</label>
-              <input class="input" type="text" id="model" placeholder="deepseek-chat" value="deepseek-chat" />
+              <input class="input" type="text" id="model" placeholder="deepseek-v4-pro" value="deepseek-v4-pro" />
               <span class="field__hint" id="model-hint">常用的别名: deepseek-v4-flash / deepseek-r1</span>
             </div>
             <div class="field" id="baseUrlField" style="display: none;">
@@ -955,7 +955,7 @@
         provider: $('provider').value,
         api_key: $('apiKey').value.trim(),
         base_url: $('baseUrl').value.trim(),
-        model: $('model').value.trim() || 'deepseek-chat',
+        model: $('model').value.trim() || 'deepseek-v4-pro',
       };
       if (!payload.api_key) { out.textContent = '请先填 API key'; out.style.color = 'var(--red)'; return; }
       buttonBusy(btn, true, '正在测试 ...');
@@ -985,7 +985,7 @@
         provider: $('provider').value,
         api_key: $('apiKey').value.trim(),
         base_url: $('baseUrl').value.trim(),
-        model: $('model').value.trim() || 'deepseek-chat',
+        model: $('model').value.trim() || 'deepseek-v4-pro',
         clients,
         method: $('launchMethod').value,
       };

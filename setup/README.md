@@ -73,7 +73,7 @@ chmod +x install.sh
 │   ③ 配置 API 提供商                          │
 │      提供商: [DeepSeek        ▼]             │
 │      API Key: [sk-...                  ]     │
-│      模型名:  [deepseek-chat         ]       │
+│      模型名:  [deepseek-v4-pro       ]       │
 │      [测试连接]  ✓ 连接正常                  │
 │                                              │
 │   ④ 选择客户端                               │
@@ -124,7 +124,7 @@ Claude Code 启动时会检查 `~/.claude.json`，如果存在 `hasCompletedOnbo
       "args": ["openai-compatible-mcp"],
       "env": {
         "DEEPSEEK_API_KEY": "sk-...",
-        "OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL": "deepseek-chat"
+        "OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL": "deepseek-v4-pro"
       }
     },
     "your-other-server": { "...": "..." }

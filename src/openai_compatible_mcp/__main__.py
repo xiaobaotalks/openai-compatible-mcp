@@ -102,7 +102,7 @@ CHAT_SCHEMA = {
         "model": {
             "type": "string",
             "description": (
-                "Model name or alias (e.g. `deepseek-chat`, `deepseek-v4-flash`, "
+                "Model name or alias (e.g. `deepseek-v4-pro`, `deepseek-v4-flash`, "
                 "`deepseek-r1`, `gpt-4o-mini`). Defaults to the configured default model."
             ),
         },
@@ -295,14 +295,14 @@ def _write_claude_code_native_config(api_key: str, python_exe: str, dry_run: boo
             "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
             "ANTHROPIC_AUTH_TOKEN": api_key,
             "ANTHROPIC_API_KEY": "",
-            "ANTHROPIC_MODEL": "deepseek-chat",
-            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-chat",
-            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-chat",
-            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-chat",
-            "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
+            "ANTHROPIC_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-v4-pro",
             "CLAUDE_CODE_EFFORT_LEVEL": "max",
         },
-        "model": "deepseek-chat",
+        "model": "deepseek-v4-pro",
         "skipIntroduction": True,
         "skipWelcome": True,
     }

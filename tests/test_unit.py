@@ -11,7 +11,7 @@ from openai_compatible_mcp import client, server
 
 
 def test_resolve_model_uses_alias():
-    assert client.resolve_model("deepseek-v4-flash") == "deepseek-chat"
+    assert client.resolve_model("deepseek-v4-flash") == "deepseek-v4-flash"
     assert client.resolve_model("deepseek-r1") == "deepseek-reasoner"
     assert client.resolve_model("gpt-4o-mini") == "gpt-4o-mini"
     # unknown model passes through

@@ -86,7 +86,7 @@ def main() -> int:
         lm = call(proc, 3, "tools/call", {"name": "list_models", "arguments": {}})
         text = lm["result"]["content"][0]["text"]
         print("[list_models]\n" + text)
-        assert "deepseek-chat" in text
+        assert "deepseek-v4-pro" in text
 
         # 5) chat tool
         chat_resp = call(proc, 4, "tools/call", {
