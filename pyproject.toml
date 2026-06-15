@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openai-compatible-mcp"
-version = "0.2.7"
+version = "0.2.8"
 description = "MCP server that bridges to any OpenAI-compatible chat API (DeepSeek, OpenAI, Azure, local llama.cpp, etc.)."
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,7 @@ dev = [
 
 [project.scripts]
 openai-compatible-mcp = "openai_compatible_mcp.__main__:main"
+openai-compatible-mcp-proxy = "openai_compatible_mcp.proxy_server:main"
 
 [project.urls]
 "Source" = "https://github.com/xiaobaotalks/openai-compatible-mcp"
