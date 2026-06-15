@@ -621,12 +621,32 @@ def translate_sse_stream(lines: Generator[str, None, None], request_body: dict) 
 # ---------------------------------------------------------------------------
 # HTTP routes
 # ---------------------------------------------------------------------------
+@app.route("/", methods=["GET"])
+def root():
+    """Browser/curl hitting the proxy URL gets a friendly info page instead of 404."""
+    return jsonify({
+        "name": "openai-compatible-mcp proxy",
+        "role": "Codex Responses API  ->  DeepSeek Chat Completions",
+        "upstream": DEEPSEEK_API_BASE,
+        "api_key_configured": bool(DEEPSEEK_API_KEY),
+        "endpoints": {
+            "POST /responses": "Codex-style Responses API (preferred)",
+            "POST /v1/responses": "Same as above, with /v1 prefix",
+            "GET  /v1/models": "List model aliases that proxy knows about",
+            "GET  /health": "Liveness probe (returns upstream + key status)",
+        },
+        "quick_test": "curl http://127.0.0.1:7878/health",
+        "codex_config": "~/.codex/config.toml -> base_url = http://127.0.0.1:7878",
+    })
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "ok",
         "upstream": DEEPSEEK_API_BASE,
         "proxy": "codex-responses -> deepseek-chat-completions",
+        "api_key_configured": bool(DEEPSEEK_API_KEY),
     })
 
 
@@ -758,6 +778,22 @@ def main():
         print(
             f"WARNING: DEEPSEEK_API_KEY not set. Wizard should have written it to {_CONFIG_PATH}, "
             f"or set the env var before running.",
+            file=sys.stderr,
+        )
+        print(
+            f"  → 三种修复方式(任选其一):",
+            file=sys.stderr,
+        )
+        print(
+            f"    1) 重新跑 `openai-compatible-mcp`(无参数),打开浏览器,在向导里填 Key 后点「保存」,再跑 --proxy。",
+            file=sys.stderr,
+        )
+        print(
+            f"    2) 临时传入:`openai-compatible-mcp --proxy --api-key sk-你的key`",
+            file=sys.stderr,
+        )
+        print(
+            f"    3) 设环境变量:`$env:DEEPSEEK_API_KEY='sk-你的key'`(PowerShell)再跑 --proxy。",
             file=sys.stderr,
         )
     print(f"Proxy listening on http://{PROXY_HOST}:{PROXY_PORT}", flush=True)

@@ -681,6 +681,223 @@
     .foot a:hover { color: var(--text); }
     .foot__links { display: flex; gap: 16px; flex-wrap: wrap; }
 
+    /* ============ WHAT'S NEW STRIP ============ */
+    .whatsnew {
+      margin: 16px auto 0;
+      max-width: 880px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: linear-gradient(135deg, rgba(56, 211, 255, 0.08), rgba(183, 139, 255, 0.06));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      flex-wrap: wrap;
+    }
+    .whatsnew__tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: var(--bg-0);
+      font-weight: 700;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .whatsnew__items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      flex: 1;
+      min-width: 0;
+    }
+    .whatsnew__item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+    .whatsnew__item b { color: var(--text); font-weight: 600; }
+    .whatsnew__item .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 6px var(--cyan);
+      flex-shrink: 0;
+    }
+
+    /* ============ ARCH / FLOW ============ */
+    .arch {
+      margin: 0 auto;
+      max-width: 920px;
+      padding: 32px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    .arch::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(800px 300px at 50% -20%, var(--cyan-soft), transparent 60%);
+      pointer-events: none;
+    }
+    .arch__row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    @media (max-width: 720px) {
+      .arch__row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .arch__arrow { transform: rotate(90deg); }
+    }
+    .arch__node {
+      padding: 16px 18px;
+      background: var(--bg-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      text-align: center;
+      position: relative;
+    }
+    .arch__node.is-hot {
+      background: linear-gradient(180deg, rgba(56, 211, 255, 0.10), rgba(56, 211, 255, 0.02));
+      border-color: var(--cyan-soft);
+    }
+    .arch__node.is-violet {
+      background: linear-gradient(180deg, rgba(183, 139, 255, 0.10), rgba(183, 139, 255, 0.02));
+      border-color: var(--violet-soft);
+    }
+    .arch__name {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .arch__sub {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .arch__emoji {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      background: var(--surface-3);
+      font-size: 14px;
+    }
+    .arch__node.is-hot .arch__emoji { background: var(--cyan-soft); }
+    .arch__node.is-violet .arch__emoji { background: var(--violet-soft); }
+    .arch__arrow {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 18px;
+      text-align: center;
+      position: relative;
+    }
+    .arch__arrow .lbl {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+    .arch__caption {
+      margin-top: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+    .arch__caption b { color: var(--cyan); font-weight: 600; }
+
+    /* ============ FAQ ============ */
+    .faq {
+      max-width: 820px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+    .faq__item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .faq__item.is-open {
+      border-color: var(--cyan-soft);
+      background: var(--surface-2);
+    }
+    .faq__q {
+      width: 100%;
+      appearance: none;
+      background: transparent;
+      border: 0;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      text-align: left;
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .faq__q:hover { color: var(--cyan); }
+    .faq__q .toggle {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--surface-3);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-soft);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .faq__item.is-open .faq__q .toggle {
+      transform: rotate(45deg);
+      background: var(--cyan);
+      color: var(--bg-0);
+    }
+    .faq__a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+    .faq__a-inner {
+      padding: 0 20px 18px;
+      color: var(--text-soft);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .faq__a-inner code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--bg-3);
+      color: var(--cyan);
+    }
+    .faq__item.is-open .faq__a { max-height: 360px; }
+
     /* scroll-in */
     .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
     .reveal.in { opacity: 1; transform: translateY(0); }
@@ -702,8 +919,9 @@
       <div class="nav__links">
         <a class="nav__link" href="#why">特性</a>
         <a class="nav__link" href="#quick">快速开始</a>
-        <a class="nav__link" href="#how">工作流</a>
+        <a class="nav__link" href="#arch">架构</a>
         <a class="nav__link" href="#providers">提供商</a>
+        <a class="nav__link" href="#faq">FAQ</a>
         <a class="nav__link" href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">GitHub</a>
         <a class="nav__link nav__cta" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">★ PyPI</a>
       </div>
@@ -756,6 +974,16 @@
           </div>
           <div class="cmd-line"><span class="ok">→</span> <span class="hl">浏览器自动打开</span> <span class="dim">http://127.0.0.1:8989</span></div>
           <div class="cmd-line"><span class="dim">  填 API Key → 选 Claude / Codex → 点"写配置" → 完成</span></div>
+        </div>
+      </div>
+
+      <div class="whatsnew">
+        <span class="whatsnew__tag">v0.2.8</span>
+        <div class="whatsnew__items">
+          <span class="whatsnew__item"><span class="dot"></span><b>Codex</b> 内置翻译代理</span>
+          <span class="whatsnew__item"><span class="dot"></span><b>Claude Code</b> 跳过登录</span>
+          <span class="whatsnew__item"><span class="dot"></span><code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg-3);color:var(--cyan);">openai-compatible-mcp-proxy</code> 命令</span>
+          <span class="whatsnew__item"><span class="dot"></span>port-7878 防冲突</span>
         </div>
       </div>
     </header>
@@ -965,6 +1193,37 @@
       </div>
     </section>
 
+    <!-- ==================== ARCHITECTURE ==================== -->
+    <section class="block reveal" id="arch">
+      <div class="block__head">
+        <div class="block__eyebrow">// 架构</div>
+        <h2 class="block__title">Codex 走的是本地代理,而不是裸转发</h2>
+        <p class="block__desc">Codex CLI 默认发 <code>/v1/responses</code> 格式,DeepSeek 走 <code>/v1/chat/completions</code>。<b style="color:var(--cyan);">openai-compatible-mcp-proxy</b> 在中间做协议翻译,免登免配。</p>
+      </div>
+
+      <div class="arch">
+        <div class="arch__row">
+          <div class="arch__node">
+            <div class="arch__name"><span class="arch__emoji">🤖</span> Codex CLI</div>
+            <div class="arch__sub">~/.codex/config.toml</div>
+          </div>
+          <div class="arch__arrow">→<span class="lbl">POST /v1/responses</span></div>
+          <div class="arch__node is-hot">
+            <div class="arch__name"><span class="arch__emoji">⚡</span> 本地代理</div>
+            <div class="arch__sub">127.0.0.1:7878 · Flask</div>
+          </div>
+          <div class="arch__arrow">→<span class="lbl">POST /v1/chat/completions</span></div>
+          <div class="arch__node is-violet">
+            <div class="arch__name"><span class="arch__emoji">🧠</span> DeepSeek</div>
+            <div class="arch__sub">api.deepseek.com</div>
+          </div>
+        </div>
+        <div class="arch__caption">
+          同样的 MCP 工具,同样的 <b>deepseek-v4-pro</b> · 流式响应 · 函数调用 · 上下文压缩 全部由代理透明翻译
+        </div>
+      </div>
+    </section>
+
     <!-- ==================== PROVIDERS ==================== -->
     <section class="block reveal" id="providers">
       <div class="block__head">
@@ -1060,6 +1319,58 @@
       </div>
     </section>
 
+    <!-- ==================== FAQ ==================== -->
+    <section class="block reveal" id="faq">
+      <div class="block__head">
+        <div class="block__eyebrow">// 常见问题</div>
+        <h2 class="block__title">装包前你可能想知道的</h2>
+      </div>
+
+      <div class="faq">
+        <div class="faq__item">
+          <button class="faq__q" type="button">它和官方 MCP Python SDK 是什么关系?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            没有关系。stdio JSON-RPC 2.0 帧解析用 <code>__main__.py</code> + <code>server.py</code> 共 ~300 行纯标准库代码实现,零三方依赖,所以 <code>pip install</code> 一行就能跑。代理层(<code>proxy_server.py</code>)只在启动 <code>openai-compatible-mcp-proxy</code> 时按需 <code>pip install flask httpx</code>。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">API Key 存哪里?会被上传吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。Key 通过向导写入 <code>%USERPROFILE%/.openai_compatible_mcp/config.json</code>(Windows)或 <code>~/.config/openai-compatible-mcp/config.json</code>(macOS / Linux),只在本机读写,从不外发。Codex 走本地代理时,Key 也只在 <code>127.0.0.1:7878</code> 这个本地回环里使用,直接转发到 DeepSeek 官方域名。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Codex 翻译代理会同时启动两个进程吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。代理在启动前会先扫描 <code>127.0.0.1:7878</code> 端口是否被占用,若已有一个实例在跑就直接复用,不会重复拉起。Codex CLI 端只信任本地回环,不会暴露到外网。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Claude Code 怎么跳过 Anthropic 登录?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            向导会同时写 <code>~/.claude.json</code> 和 <code>~/.claude/settings.json</code>,把 <code>hasCompletedOnboarding</code> 设为 <code>true</code>,并注入 <code>ANTHROPIC_BASE_URL</code> 指向 DeepSeek 的 Anthropic 兼容端点。下次启动 <code>claude</code> 不会再弹登录页。<code>setup/claude-launch.cmd</code>(Windows)/ <code>setup/claude-launch.sh</code>(macOS / Linux)进一步把这一过程包成一个命令 <code>claude-launch</code>。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">已经装过其他 MCP server,会被覆盖吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            不会。写入 <code>mcpServers</code> / <code>mcp_servers</code> 时走"读 → 合并 → 写"流程,本包只新增 <code>openai-compatible-mcp</code> 这一项,你原有的 server 全部保留。卸载时(<code>pip uninstall</code>)也会从配置里把对应条目一并清掉,不留垃圾。
+          </div></div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">想用自己跑的 llama.cpp / vLLM / Ollama,可以吗?<span class="toggle">+</span></button>
+          <div class="faq__a"><div class="faq__a-inner">
+            可以。向导里选 <b>自定义</b>,把 <code>base_url</code> 填成 <code>http://127.0.0.1:11434/v1</code>(Ollama 兼容模式)或 <code>http://127.0.0.1:8080/v1</code>(llama.cpp server)即可。只要它暴露 <code>/v1/chat/completions</code> 就直接接得上,模型名也可以在 <code>config.json</code> 里随便写。
+          </div></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ==================== VS MANUAL ==================== -->
     <section class="block reveal" id="compare">
       <div class="block__head">
@@ -1144,6 +1455,15 @@
     } else {
       document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
     }
+
+    // FAQ accordion
+    document.querySelectorAll('.faq__q').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.faq__item');
+        if (!item) return;
+        item.classList.toggle('is-open');
+      });
+    });
   </script>
 </body>
 </html>

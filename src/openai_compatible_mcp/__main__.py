@@ -473,7 +473,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--api-key",
         default=None,
-        help="指定写入配置文件 env.DEEPSEEK_API_KEY 的值（配合 --install-config 使用）。",
+        help=(
+            "DeepSeek API Key。可配合 --install-config 写入配置文件 env.DEEPSEEK_API_KEY；"
+            "也可配合 --proxy 临时注入(无需打开浏览器向导)。"
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -510,6 +513,12 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if args.proxy:
+        # 允许 --api-key 直接传 DeepSeek Key(免去打开浏览器向导的步骤);
+        # 这里把 key 注入到 DEEPSEEK_API_KEY 环境变量,proxy_server 在
+        # 启动时会优先读 env,fallback 到 ~/.openai-compatible-mcp/proxy.json。
+        if args.api_key:
+            os.environ["DEEPSEEK_API_KEY"] = args.api_key
+            print(f"[openai-compatible-mcp] 已通过 --api-key 注入 DEEPSEEK_API_KEY", file=sys.stderr, flush=True)
         from openai_compatible_mcp import proxy_server
         try:
             proxy_server.main()

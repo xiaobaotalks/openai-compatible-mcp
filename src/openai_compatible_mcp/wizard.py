@@ -710,6 +710,21 @@ def main() -> int:
 
     if is_port_in_use(PORT):
         info(f"端口 {PORT} 已被占用,假定已有实例在运行,直接打开浏览器")
+        # 顺便检查一下 ~/.openai-compatible-mcp/proxy.json 里有没有 API Key,
+        # 没有的话提醒用户去浏览器里填,否则 --proxy 起来后转发不到 DeepSeek。
+        proxy_cfg = Path.home() / ".openai-compatible-mcp" / "proxy.json"
+        if not proxy_cfg.is_file():
+            info("⚠ 还没找到 ~/.openai-compatible-mcp/proxy.json 。")
+            info("  请在弹出的浏览器向导里填 DeepSeek API Key 后点「保存」,")
+            info("  否则稍后跑 openai-compatible-mcp --proxy 会因为缺 Key 无法转发。")
+        else:
+            try:
+                with proxy_cfg.open("r", encoding="utf-8") as f:
+                    if not (json.load(f).get("deepseek_api_key") or "").strip():
+                        info("⚠ proxy.json 已存在,但 deepseek_api_key 为空。")
+                        info("  请在浏览器向导里填 Key 后点「保存」,再重启 --proxy。")
+            except Exception:
+                info("⚠ proxy.json 读取失败,请在浏览器向导里重新填一次 Key。")
         webbrowser.open(f"http://{HOST}:{PORT}/")
         return 0
 
