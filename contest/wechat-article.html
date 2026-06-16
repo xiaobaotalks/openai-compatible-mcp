@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>被 Claude Code 登录弹窗逼疯后，我写了一行 pip install 解决 · 微信公众号推文</title>
+<meta name="description" content="openai-compatible-mcp 项目介绍 · Claude Code 跳过登录 · 接入 DeepSeek · 一行 pip install">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-cyan: #5eead4;
+    --brand-violet: #a78bfa;
+    --brand-pink: #f472b6;
+    --brand-amber: #fbbf24;
+    --brand-green: #4ade80;
+    --brand-red: #f87171;
+    --text-main: #2c2c2c;
+    --text-sub: #6b6b6b;
+    --text-quote: #8b8b8b;
+    --border: #ebebeb;
+    --bg-soft: #f7f8fa;
+    --code-bg: #1e1e2e;
+    --code-fg: #e4e4e7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    background: #f0f2f5;
+    color: var(--text-main);
+    line-height: 1.78;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: var(--text-sub);
+  }
+  .topbar__left { display: flex; align-items: center; gap: 10px; }
+  .topbar__logo { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--brand-cyan), var(--brand-violet)); display: grid; place-items: center; font-family: 'JetBrains Mono'; font-weight: 700; font-size: 12px; color: #0a0c12; }
+  .topbar__btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--text-main); cursor: pointer; font-size: 12px; font-family: inherit; transition: all 0.2s; }
+  .topbar__btn:hover { border-color: var(--brand-violet); color: var(--brand-violet); }
+  .topbar__btn.is-primary { background: linear-gradient(135deg, var(--brand-cyan), var(--brand-violet)); color: #0a0c12; border-color: transparent; font-weight: 600; }
+  .topbar__btn.is-primary:hover { filter: brightness(1.05); }
+
+  .page { max-width: 677px; margin: 20px auto 60px; background: #fff; box-shadow: 0 2px 24px rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; }
+
+  .article { padding: 36px 28px 48px; }
+  .article__meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 13px; color: var(--text-sub); }
+  .article__avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-cyan), var(--brand-violet)); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
+  .article__author-name { font-weight: 600; color: var(--text-main); }
+  .article__date { margin-left: auto; }
+
+  h1.article__title { font-size: 22px; font-weight: 800; line-height: 1.4; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .article__subtitle { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; }
+
+  .cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+    margin: 20px 0 28px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #4c1d95 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(76,29,149,0.3);
+  }
+  .cover::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(94,234,212,0.3) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(244,114,182,0.3) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(167,139,250,0.2) 0%, transparent 60%);
+  }
+  .cover::after {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .cover__content { position: relative; z-index: 1; padding: 24px; }
+  .cover__emoji { font-size: 56px; line-height: 1; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(94,234,212,0.5)); }
+  .cover__title { font-size: 26px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; background: linear-gradient(135deg, #fff 0%, #5eead4 50%, #f472b6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cover__sub { margin-top: 12px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: 'JetBrains Mono', monospace; }
+  .cover__icons { display: flex; gap: 14px; margin-top: 20px; justify-content: center; flex-wrap: wrap; }
+  .cover__icon { width: 38px; height: 38px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); display: grid; place-items: center; font-size: 18px; backdrop-filter: blur(10px); }
+
+  h2 { font-size: 19px; font-weight: 700; color: #1a1a1a; margin: 36px 0 14px; line-height: 1.5; position: relative; padding-left: 12px; }
+  h2::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 2px; background: linear-gradient(180deg, var(--brand-cyan), var(--brand-violet)); }
+  h3 { font-size: 17px; font-weight: 700; color: #1a1a1a; margin: 24px 0 10px; line-height: 1.5; }
+  p { margin-bottom: 14px; color: var(--text-main); }
+  p strong { color: #0a0a0a; font-weight: 700; }
+  em { font-style: normal; background: linear-gradient(120deg, rgba(94,234,212,0.15), rgba(167,139,250,0.15)); padding: 1px 6px; border-radius: 4px; color: #1a1a1a; font-weight: 500; }
+
+  blockquote {
+    margin: 18px 0; padding: 14px 18px;
+    background: var(--bg-soft);
+    border-left: 3px solid var(--brand-violet);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-sub);
+    font-size: 15px;
+  }
+  blockquote strong { color: var(--text-main); }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 16px 18px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    margin: 14px 0 18px;
+    position: relative;
+  }
+  pre::before {
+    content: 'TERMINAL';
+    position: absolute; top: 6px; right: 12px;
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    letter-spacing: 0.15em; font-weight: 600;
+  }
+  pre code { color: inherit; background: none; padding: 0; font-size: inherit; }
+  code {
+    font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+    background: rgba(167,139,250,0.1);
+    color: #6d28d9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  /* 终端代码块高亮 */
+  .c-com { color: #6b7280; font-style: italic; }
+  .c-cmd { color: #5eead4; }
+  .c-str { color: #fcd34d; }
+  .c-key { color: #f472b6; }
+  .c-out { color: #a3a3a3; }
+
+  .illust {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    margin: 18px 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .illust__emoji { font-size: 64px; line-height: 1; margin-bottom: 14px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); }
+  .illust__title { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; line-height: 1.3; }
+  .illust__sub { font-size: 13px; opacity: 0.75; }
+  .illust__corner { position: absolute; top: 12px; left: 14px; font-size: 10px; letter-spacing: 0.18em; opacity: 0.5; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+  .illust--pain { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #7f1d1d; }
+  .illust--pain::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 30%, rgba(248,113,113,0.4) 0%, transparent 50%); }
+
+  .illust--concept { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); color: #fff; }
+  .illust--concept::before { content: ''; position: absolute; inset: 0; background:
+      radial-gradient(circle at 20% 50%, rgba(94,234,212,0.3) 0%, transparent 40%),
+      radial-gradient(circle at 80% 50%, rgba(244,114,182,0.3) 0%, transparent 40%);
+  }
+  .illust--concept::after { content: ''; position: absolute; inset: 0; background-image:
+      linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 20px 20px; }
+
+  .illust--hero { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); color: #fff; }
+  .illust--hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 70% 30%, rgba(74,222,128,0.4) 0%, transparent 50%); }
+
+  .illust--tool { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; }
+  .illust--tool::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 30%, rgba(94,234,212,0.3) 0%, transparent 60%); }
+
+  .illust--community { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%); color: #78350f; }
+  .illust--community::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(251,191,36,0.3) 0%, transparent 60%); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px; border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-violet));
+    color: #0a0c12; font-weight: 700; font-size: 12px;
+  }
+  .pill.is-amber { background: linear-gradient(135deg, var(--brand-amber), #f59e0b); }
+  .pill.is-pink { background: linear-gradient(135deg, var(--brand-pink), #ec4899); color: #fff; }
+
+  ul, ol { margin: 12px 0 16px 24px; }
+  li { margin-bottom: 8px; color: var(--text-main); }
+  li strong { color: #0a0a0a; }
+
+  .table-wrap { margin: 16px 0; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 12px; border: 1px solid var(--border); text-align: left; }
+  th { background: var(--bg-soft); font-weight: 700; color: var(--text-main); }
+  td { color: var(--text-sub); }
+  td strong { color: var(--text-main); }
+
+  .callout {
+    margin: 18px 0; padding: 16px 18px;
+    background: linear-gradient(135deg, rgba(94,234,212,0.08), rgba(167,139,250,0.08));
+    border: 1px solid rgba(167,139,250,0.2);
+    border-radius: 10px;
+    font-size: 15px;
+  }
+  .callout__title { font-weight: 700; color: #1a1a1a; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+
+  .cta {
+    margin: 28px 0 12px;
+    padding: 24px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    border-radius: 12px;
+    color: #fff;
+    text-align: center;
+  }
+  .cta__title { font-size: 19px; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #5eead4, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cta__sub { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 18px; }
+  .cta__btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .cta__btn { padding: 10px 18px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+  .cta__btn:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .cta__btn.is-primary { background: linear-gradient(135deg, var(--brand-cyan), var(--brand-violet)); color: #0a0c12; border-color: transparent; font-weight: 700; }
+
+  .signoff {
+    margin-top: 32px; padding-top: 18px;
+    border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--text-quote);
+    text-align: right;
+  }
+
+  .footer {
+    background: #f7f8fa; padding: 18px 28px;
+    font-size: 12px; color: var(--text-quote);
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+  .footer a { color: var(--brand-violet); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  /* 微信风排版增强 */
+  .wechat-note {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin: 20px 0;
+  }
+  .wechat-note__title { font-weight: 700; margin-bottom: 4px; }
+
+  @media (max-width: 720px) {
+    .article { padding: 24px 18px 32px; }
+    h1.article__title { font-size: 20px; }
+    h2 { font-size: 17px; }
+    pre { font-size: 12.5px; padding: 14px; }
+    .cover__title { font-size: 22px; }
+    .cover__emoji { font-size: 44px; }
+    .topbar { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar__left">
+    <div class="topbar__logo">MC</div>
+    <div>
+      <div style="font-weight:700;color:var(--text-main);">微信推文预览 · openai-compatible-mcp</div>
+      <div style="font-size:11px;">CSS 生成版 · 无外部图片 · 渲染稳定</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="topbar__btn" onclick="window.print()">🖨 打印/导出 PDF</button>
+    <button class="topbar__btn is-primary" onclick="copyArticle()">📋 复制纯文本</button>
+  </div>
+</div>
+
+<div class="page">
+<article class="article" id="article">
+
+  <div class="article__meta">
+    <div class="article__avatar">小</div>
+    <div>
+      <div class="article__author-name">xiaobaotalks</div>
+      <div>初级开发者 · 开源作者</div>
+    </div>
+    <div class="article__date">2026-06-16</div>
+  </div>
+
+  <h1 class="article__title">被 Claude Code 登录弹窗逼疯后，我写了一行 pip install 解决</h1>
+  <div class="article__subtitle">一个初级开发者的 MCP 踩坑自述 · 5 分钟让 Claude Code 跑上 DeepSeek</div>
+
+  <!-- 封面:CSS 生成 -->
+  <div class="cover">
+    <div class="cover__content">
+      <div class="cover__emoji">🔌</div>
+      <div class="cover__title">MCP × 4 IDEs × 国产 LLM</div>
+      <div class="cover__sub">openai-compatible-mcp · v0.2.11</div>
+      <div class="cover__icons">
+        <div class="cover__icon">📘</div>
+        <div class="cover__icon">🅒</div>
+        <div class="cover__icon">🆎</div>
+        <div class="cover__icon">📦</div>
+        <div class="cover__icon">⚡</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一、开场痛点 -->
+  <h2>🧨 上周，我被一个弹窗卡了 40 分钟</h2>
+
+  <p>上周我准备用 <strong>Claude Code</strong> 写个 Python 小项目，心想 AI 助手该多香啊。</p>
+
+  <p>啪——弹窗：<strong>"请登录 Anthropic 账号"</strong>。</p>
+
+  <p>我点了取消。啪，又来。啪，又来。</p>
+
+  <p>我只是想用 Claude Code 跑个 DeepSeek 的 API，为什么要登录一个我根本没有、也不打算注册的账号？</p>
+
+  <p>这已经是我这个月第 <strong>5 次</strong> 在不同的 AI 编码 IDE（Claude Desktop、Cursor、Claude Code、Codex CLI）上被各种登录、配置、协议问题挡住了。</p>
+
+  <p>那一刻我意识到：<em>这些工具的设计师默认你是个 Anthropic / OpenAI 的付费用户</em>。但我们这些用国产模型的开发者，根本没账号。</p>
+
+  <p>于是那一晚，我没写代码，<strong>写了 18 个 commit 的一个工具</strong>——<code>openai-compatible-mcp</code>。</p>
+
+  <!-- 痛点插画 -->
+  <div class="illust illust--pain">
+    <div class="illust__corner">FIG. 01 · PAIN</div>
+    <div class="illust__emoji">😵‍💫</div>
+    <div class="illust__title">登录弹窗 × 5 IDEs × ∞ 次</div>
+    <div class="illust__sub">一个初级开发者每个月浪费的下午</div>
+  </div>
+
+  <!-- 二、什么是 MCP -->
+  <h2>🔌 什么是 MCP？为什么会有 4 个 IDE 要配 4 个地方？</h2>
+
+  <p>简单点说（不装 X）：</p>
+
+  <ul>
+    <li><strong>MCP（Model Context Protocol）</strong> = AI 跟外部工具/数据源"对话"的协议。你可以理解成 <em>USB 接口</em>——你的 IDE 是个电脑，AI 模型是个 U 盘，MCP 就是那个统一的插口标准。</li>
+    <li>Anthropic 2024 年开源了这个协议，<strong>所有 IDE 都在抢着接</strong>。</li>
+    <li>问题是：每个 IDE 接 MCP 的方式不一样，<strong>配置文件 4 份，字段名 4 种</strong>。</li>
+  </ul>
+
+  <blockquote>
+    想象一下：你买了 1 个 U 盘，结果苹果电脑、安卓手机、Windows、Linux <strong>每个都要配不同的驱动</strong>，每个驱动文件放不同的文件夹、字段名都不一样。你每次切换设备就要重新折腾 30 分钟。
+  </blockquote>
+
+  <p>这就是我当时面对的现实。</p>
+
+  <!-- 概念插画 -->
+  <div class="illust illust--concept">
+    <div class="illust__corner">FIG. 02 · MCP</div>
+    <div class="illust__emoji">🔌</div>
+    <div class="illust__title">1 个协议，4 种配置</div>
+    <div class="illust__sub">mcpServers / mcp_servers / config.toml / ~/.claude.json</div>
+  </div>
+
+  <!-- 三、那一晚我做了什么 -->
+  <h2>🛠 那一晚，我做了一个"驱动整合器"</h2>
+
+  <p>我写了一个 Python 包——<strong><code>openai-compatible-mcp</code></strong>，已经在 PyPI 上发到 v0.2.11 了。</p>
+
+  <p>它做了一件事：<em>把 4 个 IDE 的"驱动安装"打成了 1 行命令</em>。</p>
+
+<pre><code><span class="c-com"># 就这一行。零三方依赖。</span>
+<span class="c-cmd">pip install</span> <span class="c-key">openai-compatible-mcp</span></code></pre>
+
+  <p>对，<strong>连 MCP SDK 我都没用</strong>，自己用标准库实现了 JSON-RPC 2.0 协议——300 行代码，不用装一堆包。</p>
+
+  <!-- 工具插画 -->
+  <div class="illust illust--tool">
+    <div class="illust__corner">FIG. 03 · TOOL</div>
+    <div class="illust__emoji">📦</div>
+    <div class="illust__title">1 个 pip install · 4 个 IDE · 6+ 家 LLM</div>
+    <div class="illust__sub">DeepSeek · 千问 · MinMax · mimo · OpenAI · 自定义</div>
+  </div>
+
+  <!-- 四、5 分钟跑通 -->
+  <h2>⭐ 5 分钟跑通 Claude Code + DeepSeek（重点来了）</h2>
+
+  <p>下面这个组合是<strong>我自己最常用、也是帮同事们最常配的</strong>——<em>Claude Code + DeepSeek，全程不用登录</em>。</p>
+
+  <h3>Step 1：装包</h3>
+<pre><code><span class="c-cmd">pip install</span> openai-compatible-mcp</code></pre>
+
+  <h3>Step 2：把 DeepSeek 的 Key 写进配置</h3>
+<pre><code><span class="c-cmd">openai-compatible-mcp</span> <span class="c-key">--api-key</span> <span class="c-str">sk-你的DeepSeekKey</span></code></pre>
+
+  <h3>Step 3：起向导，浏览器自动开 <code>127.0.0.1:8989</code></h3>
+<pre><code><span class="c-cmd">openai-compatible-mcp</span></code></pre>
+
+  <p>打开浏览器你会看到一个<strong>暗色的控制台</strong>（对，我特意做的，不是冷冰冰的 JSON 界面）。</p>
+
+  <h3>Step 4：勾选 Claude Code，点"写配置"</h3>
+
+  <p>工具会自动：</p>
+  <ol>
+    <li>写 <code>~/.claude.json</code></li>
+    <li>写 <code>~/.claude/settings.json</code></li>
+    <li><strong>设置 <code>hasCompletedOnboarding=true</code>——这就是跳过登录的关键</strong></li>
+    <li>把 <code>ANTHROPIC_BASE_URL</code> 指向 DeepSeek 的 Anthropic 兼容端点</li>
+  </ol>
+
+  <h3>Step 5：重启 Claude Code</h3>
+<pre><code><span class="c-cmd">claude</span></code></pre>
+
+  <p>完事。<strong>没有登录弹窗。直接进 IDE 写代码，AI 后台跑的是 DeepSeek</strong>。</p>
+
+  <p>我自己第一次跑通的时候，差点感动哭了——被登录弹窗折腾太久，突然畅通无阻的那种爽。</p>
+
+  <!-- Hero 插画 -->
+  <div class="illust illust--hero">
+    <div class="illust__corner">FIG. 04 · HERO</div>
+    <div class="illust__emoji">✅</div>
+    <div class="illust__title">跳过登录 · Claude Code × DeepSeek</div>
+    <div class="illust__sub">hasCompletedOnboarding=true · 5 分钟跑通</div>
+  </div>
+
+  <!-- 五、几个小心机 -->
+  <h2>🧠 几个让我得意的"小心机"</h2>
+
+  <h3>① Codex 协议不兼容？我内置了翻译代理</h3>
+  <p>Codex CLI 走的是 OpenAI 较新的 <code>/v1/responses</code> 接口，DeepSeek 走的是 <code>/v1/chat/completions</code>，两个协议不兼容。我用 Flask 写了一个本地代理（<code>127.0.0.1:7878</code>），<em>自动翻译请求和响应</em>。Codex 启动时不用任何配置，AI 模型栏选 <code>http://127.0.0.1:7878</code> 即可。</p>
+
+  <h3>② 不会动你已有的 MCP server</h3>
+  <p>写配置走"读 → 合并 → 写"流程，<strong>只新增本包条目，你原来配的 server 全部保留</strong>。卸载时一并清掉，不留垃圾。</p>
+
+  <h3>③ 6 家国产 LLM 一键切</h3>
+  <p>默认支持 <span class="pill">DeepSeek</span> <span class="pill is-amber">千问</span> <span class="pill is-pink">MinMax</span> <span class="pill">mimo</span> OpenAI / 自定义。本地跑的 Ollama / vLLM / llama.cpp 走 OpenAI 兼容模式也能一行接上。</p>
+
+  <!-- 六、对比表 -->
+  <h2>📊 自己手搓 vs 用 openai-compatible-mcp</h2>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>维度</th><th>✅ 用本工具</th><th>❌ 自己手搓</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>配置分散</td>
+        <td><strong>向导一步写全</strong></td>
+        <td>读 4 份 JSON 规范</td>
+      </tr>
+      <tr>
+        <td>Codex 协议</td>
+        <td><strong>内置 Flask 翻译</strong></td>
+        <td>手写 responses 适配</td>
+      </tr>
+      <tr>
+        <td>Claude Code 登录</td>
+        <td><strong>hasCompletedOnboarding=true</strong></td>
+        <td>注册或改 env 失败</td>
+      </tr>
+      <tr>
+        <td>三方依赖</td>
+        <td><strong>0 个(标准库)</strong></td>
+        <td>mcp + pydantic + uvicorn + ...</td>
+      </tr>
+      <tr>
+        <td>耗时</td>
+        <td><strong>5 分钟</strong></td>
+        <td>2-3 个晚上</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- 七、写给同样崩溃的你 -->
+  <h2>🎯 写给同样在 IDE 切换中崩溃的你</h2>
+
+  <p>如果你也是：</p>
+  <ul>
+    <li>在 Cursor / Claude / Codex 之间反复切</li>
+    <li>想用国产 LLM 节省成本</li>
+    <li>被登录弹窗、配置文件、协议不兼容逼疯过</li>
+  </ul>
+
+  <p><strong>试一下这一行</strong>：</p>
+<pre><code><span class="c-cmd">pip install</span> <span class="c-key">openai-compatible-mcp</span></code></pre>
+
+  <p>5 分钟，你会感谢那个晚上没写代码、却写了 18 个 commit 的自己。</p>
+
+  <div class="callout">
+    <div class="callout__title">💡 写给同样在做 MCP 工具的同行</div>
+    整个 MCP 协议核心（stdio JSON-RPC 2.0 帧解析 + 工具注册 + 流式响应）只用 ~300 行 Python 标准库实现。<strong>不用装 SDK 也能跑</strong>。如果你也想做一个 MCP 工具，可以直接 fork 我的 server.py 改。
+  </div>
+
+  <div class="cta">
+    <div class="cta__title">一键装上,5 分钟跑通</div>
+    <div class="cta__sub">PyPI v0.2.11 · MIT License · 单人维护中</div>
+    <div class="cta__btns">
+      <a class="cta__btn is-primary" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">📦 PyPI 装包</a>
+      <a class="cta__btn" href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">💻 GitHub 源码</a>
+      <a class="cta__btn" href="https://xiaobaotalks.github.io/openai-compatible-mcp/" target="_blank">🌐 落地页</a>
+    </div>
+  </div>
+
+  <div class="signoff">
+    —— 一个初级开发者 · xiaobaotalks<br>
+    2026-06-16
+  </div>
+
+  <div class="wechat-note">
+    <div class="wechat-note__title">📌 排版说明</div>
+    本文采用 <code>Noto Sans SC</code> + <code>JetBrains Mono</code> 字体,代码块自带终端标识,所有插画为 CSS 渐变 + emoji 生成(渲染稳定,无外部图片依赖)。微信编辑器粘贴后,记得手动给每个代码段加"引用"或"卡片"样式以保留高亮。
+  </div>
+
+</article>
+</div>
+
+<div class="footer">
+  本页面为 <a href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">openai-compatible-mcp</a> 项目的微信推文预览 · CSS 生成版 · 渲染不依赖任何外部图片
+</div>
+
+<script>
+function copyArticle() {
+  const article = document.getElementById('article');
+  const text = article.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅ 已复制';
+    setTimeout(() => btn.innerHTML = orig, 1500);
+  }).catch(err => {
+    // fallback: select article
+    const range = document.createRange();
+    range.selectNode(article);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+}
+</script>
+
+</body>
+</html>
