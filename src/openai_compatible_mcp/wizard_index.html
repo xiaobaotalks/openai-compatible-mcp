@@ -499,6 +499,33 @@
     .success-banner__title { font-weight: 700; font-size: 18px; margin-bottom: 4px; }
     .success-banner__body { color: var(--text-soft); font-size: 14px; }
 
+    /* ============================================================ */
+    /* 9.5 Warning banner (Codex 等需要额外步骤的场景)              */
+    /* ============================================================ */
+    .warn-banner {
+      background: linear-gradient(135deg, var(--amber-soft), rgba(245, 196, 81, 0.04));
+      border: 1px solid var(--amber-soft);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      margin: 14px 0;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .warn-banner__icon {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--amber);
+      color: #1a1200;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px var(--amber-soft);
+    }
+    .warn-banner__title { font-weight: 700; font-size: 15px; margin-bottom: 4px; color: var(--amber); }
+    .warn-banner__body { color: var(--text-soft); font-size: 13.5px; line-height: 1.55; }
+    .warn-banner__body code { font-family: var(--font-mono); color: var(--amber); background: var(--surface); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+
     .restart-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
     .restart-row {
       display: flex; align-items: center; gap: 10px;
@@ -710,6 +737,21 @@
               </div>
             </label>
           </div>
+          <div id="codex-warn" style="display: none;">
+            <div class="warn-banner">
+              <div class="warn-banner__icon">!</div>
+              <div>
+                <div class="warn-banner__title">Codex 还需要一个本地代理</div>
+                <div class="warn-banner__body">
+                  Codex 走的是 <code>http://127.0.0.1:7878</code>(DeepSeek 协议翻译代理),
+                  所以 <b>在执行 <code>codex</code> 命令前</b>,必须先在另一窗口启动代理。
+                  写完配置后,点第 ⑥ 步的 <b>「🚀 启动 Codex 代理」</b> 一键完成;
+                  也可以手动跑 <code>openai-compatible-mcp --proxy</code> 或双击
+                  <code>setup\proxy-launch.cmd</code>。
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="form-grid" style="margin-top: 16px;">
             <div class="field" id="codexBaseUrlField" style="display: none;">
               <label class="field__label" for="codexBaseUrl">Codex 独立 Base URL (走本地代理)</label>
@@ -765,6 +807,23 @@
             <strong style="font-size: 14px;">重启这些客户端以加载新配置:</strong>
             <div class="restart-list" id="restart-list"></div>
           </div>
+
+          <div style="margin-top: 24px;" id="launch-row" hidden>
+            <strong style="font-size: 14px;">一键启动后台服务(新窗口,关掉即停)</strong>
+            <p class="step__desc" style="margin-top: 4px;">
+              Codex 必须先有翻译代理,Claude Code 必须先注入 DeepSeek env,点下面的按钮省去开终端的麻烦。
+            </p>
+            <div class="btn-row" style="margin-top: 12px;">
+              <button class="btn btn--primary" id="btn-start-proxy" data-target="proxy" hidden>
+                <span class="btn-label">🚀 启动 Codex 代理</span>
+              </button>
+              <button class="btn btn--primary" id="btn-start-claude" data-target="claude" hidden>
+                <span class="btn-label">🚀 启动 Claude Code</span>
+              </button>
+            </div>
+            <div class="log" id="launch-log" style="margin-top: 12px;"></div>
+          </div>
+
           <div style="margin-top: 24px;">
             <strong style="font-size: 14px;">可选:开机自动启动向导服务</strong>
             <p class="step__desc" style="margin-top: 4px;">本机登录后自动拉起这个向导页(方便后续修改配置)。不勾选也不影响 MCP 客户端的使用。</p>
@@ -945,10 +1004,11 @@
     }
     $('provider').addEventListener('change', () => { delete $('model').dataset.touched; delete $('baseUrl').dataset.touched; updateProviderHints(); });
 
-    // 勾选 Codex 时才显示独立 base URL 字段
+    // 勾选 Codex 时才显示独立 base URL 字段 + 警告
     function updateCodexBaseUrlVisibility() {
       const checked = [...document.querySelectorAll('#client-list input:checked')].map(i => i.value);
       $('codexBaseUrlField').style.display = checked.includes('codex') ? '' : 'none';
+      $('codex-warn').style.display = checked.includes('codex') ? '' : 'none';
     }
     document.querySelectorAll('#client-list input').forEach(el => el.addEventListener('change', updateCodexBaseUrlVisibility));
     updateCodexBaseUrlVisibility();
@@ -1030,8 +1090,8 @@
     const RESTART_HINTS = {
       claude_desktop: { name: 'Claude Desktop', cmd: '完全退出后重新打开(Cmd+Q / 任务管理器结束进程)' },
       cursor:         { name: 'Cursor',        cmd: 'Cursor → Ctrl+Shift+P → "MCP: List Servers" → 刷新' },
-      claude_code:    { name: 'Claude Code',   cmd: '双击 setup\\claude-launch.cmd 启动(注入 DeepSeek 网关 env) — 或在终端运行 claude-launch' },
-      codex:          { name: 'Codex CLI',     cmd: '重启 Codex 桌面客户端,或重开 codex 命令' },
+      claude_code:    { name: 'Claude Code',   cmd: '点下方「🚀 启动 Claude Code」一键拉起(已注入 DeepSeek env),或在终端跑 claude-launch' },
+      codex:          { name: 'Codex CLI',     cmd: '① 先点下方「🚀 启动 Codex 代理」(新窗口跑 127.0.0.1:7878) → ② 重启 codex / 重新执行 codex 命令' },
     };
     function showDone(clients, payload) {
       $('card-done').style.display = '';
@@ -1047,8 +1107,50 @@
         row.innerHTML = '<span class="restart-row__name">' + h.name + '</span><span class="restart-row__cmd">' + h.cmd + '</span>';
         list.appendChild(row);
       }
+      // 启动按钮:勾了 codex → 显示代理按钮;勾了 claude_code → 显示 claude 按钮
+      const needProxy = clients.includes('codex');
+      const needClaude = clients.includes('claude_code');
+      $('btn-start-proxy').hidden = !needProxy;
+      $('btn-start-claude').hidden = !needClaude;
+      $('launch-row').hidden = !(needProxy || needClaude);
       $('card-done').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // ====================================================================
+    // 启动代理 / claude(新窗口)
+    // ====================================================================
+    async function startInWindow(target) {
+      const btn = target === 'proxy' ? $('btn-start-proxy') : $('btn-start-claude');
+      buttonBusy(btn, true, '正在启动 ...');
+      const r = await api('/api/start-' + target, 'POST', {});
+      buttonBusy(btn, false);
+      clearLog('launch-log');
+      if (r.data.skipped) {
+        log('launch-log', '⏭ ' + r.data.message, 'info');
+      } else if (r.data.ok) {
+        log('launch-log', '✓ ' + r.data.message, 'ok');
+        if (r.data.used) log('launch-log', '  使用: ' + r.data.used);
+        if (r.data.command && r.data.command.length) log('launch-log', '  命令: ' + r.data.command.join(' '));
+        if (target === 'proxy') {
+          log('launch-log', '  代理启动后访问: http://127.0.0.1:7878', 'info');
+          // 3 秒后自动探活一次
+          setTimeout(() => pingProxy(), 3000);
+        }
+      } else {
+        log('launch-log', '✗ ' + (r.data.error || '启动失败'), 'err');
+      }
+    }
+    async function pingProxy() {
+      try {
+        const r = await fetch('http://127.0.0.1:7878/health', { cache: 'no-store' });
+        const j = await r.json();
+        log('launch-log', '✓ 代理在线: ' + (j.upstream || '') + ' | api_key=' + (j.api_key_configured ? 'OK' : 'NO'), 'ok');
+      } catch (e) {
+        log('launch-log', '⚠ 暂未就绪(' + e.message + '),稍等几秒再试。', 'err');
+      }
+    }
+    $('btn-start-proxy').addEventListener('click', () => startInWindow('proxy'));
+    $('btn-start-claude').addEventListener('click', () => startInWindow('claude'));
 
     $('btn-autostart').addEventListener('click', async () => {
       const btn = $('btn-autostart');

@@ -566,6 +566,186 @@ X-GNOME-Autostart-enabled=true
 
 
 # --------------------------------------------------------------------------- #
+# Launch proxy / claude in a new terminal window
+# --------------------------------------------------------------------------- #
+
+
+def _is_port_listening(host: str, port: int) -> bool:
+    """Check if a TCP port is accepting connections (LISTEN/ESTABLISHED) on host."""
+    import socket as _s
+    with _s.socket(_s.AF_INET, _s.SOCK_STREAM) as s:
+        s.settimeout(0.3)
+        try:
+            s.connect((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def _spawn_windows(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> tuple[bool, str]:
+    """Spawn `cmd` in a brand new console window on Windows."""
+    CREATE_NEW_CONSOLE = 0x00000010
+    try:
+        subprocess.Popen(
+            list(cmd),
+            cwd=cwd,
+            env=env,
+            creationflags=CREATE_NEW_CONSOLE,
+            close_fds=True,
+        )
+        return True, "已在新 cmd 窗口启动"
+    except FileNotFoundError as e:
+        return False, f"找不到可执行文件: {e}"
+    except Exception as e:  # noqa: BLE001
+        return False, f"启动失败: {e}"
+
+
+def _spawn_posix(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> tuple[bool, str]:
+    """Spawn `cmd` in a new terminal window on macOS/Linux."""
+    import shlex
+    import shutil
+
+    exports = ""
+    for k, v in (env or {}).items():
+        if v is None or v == "":
+            continue
+        exports += f"export {k}={shlex.quote(str(v))}; "
+    quoted = " ".join(shlex.quote(c) for c in cmd)
+    shell_cmd = f"{exports}{quoted}; echo; echo '[Enter] 关闭此窗口'; read"
+
+    if sys.platform == "darwin":
+        try:
+            subprocess.Popen(["osascript", "-e", f'tell application "Terminal" to do script "{shell_cmd}" activate'])
+            return True, "已在 Terminal 新标签页启动"
+        except Exception as e:  # noqa: BLE001
+            return False, f"启动失败: {e}"
+
+    for term in ("gnome-terminal", "konsole", "alacritty", "xterm", "x-terminal-emulator"):
+        if shutil.which(term):
+            try:
+                if term == "gnome-terminal":
+                    subprocess.Popen([term, "--", "bash", "-c", shell_cmd], cwd=cwd)
+                elif term == "konsole":
+                    subprocess.Popen([term, "-e", "bash", "-c", shell_cmd], cwd=cwd)
+                else:
+                    subprocess.Popen([term, "-e", "bash", "-c", shell_cmd], cwd=cwd)
+                return True, f"已在 {term} 新窗口启动"
+            except Exception:
+                continue
+    return False, "找不到可用的终端模拟器(请安装 xterm / gnome-terminal)"
+
+
+def _spawn(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> tuple[bool, str]:
+    """平台分发:Windows 走新控制台,POSIX 走新终端窗口。"""
+    if sys.platform == "win32":
+        return _spawn_windows(cmd, cwd=cwd, env=env)
+    return _spawn_posix(cmd, cwd=cwd, env=env)
+
+
+def _find_claude_launch_cmd() -> "Path | None":
+    """从本文件向上找 setup/claude-launch.cmd(开发模式),找不到就返回 None。"""
+    p = Path(__file__).resolve().parent
+    for _ in range(6):
+        for name in ("claude-launch.cmd", "claude-launch.sh"):
+            cand = p / "setup" / name
+            if cand.is_file():
+                return cand
+            cand2 = p / name
+            if cand2.is_file():
+                return cand2
+        if p.parent == p:
+            break
+        p = p.parent
+    return None
+
+
+def start_proxy_in_window() -> dict:
+    """POST /api/start-proxy:在**新窗口**启动 Codex 翻译代理 (127.0.0.1:7878)。"""
+    if _is_port_listening("127.0.0.1", 7878):
+        return {
+            "ok": True,
+            "skipped": True,
+            "message": "127.0.0.1:7878 已在监听,代理应该已经在跑,无需重复启动。",
+            "command": [],
+        }
+
+    import shutil
+    cmd: list[str] | None = None
+    if shutil.which("openai-compatible-mcp-proxy"):
+        cmd = ["openai-compatible-mcp-proxy"]
+    elif shutil.which("openai-compatible-mcp"):
+        cmd = ["openai-compatible-mcp", "--proxy"]
+    else:
+        return {
+            "ok": False,
+            "error": "找不到 openai-compatible-mcp-proxy,请先 `pip install openai-compatible-mcp`",
+            "command": [],
+        }
+
+    ok, msg = _spawn(cmd)
+    return {"ok": ok, "message": msg, "command": cmd, "skipped": False}
+
+
+def start_claude_in_window() -> dict:
+    """POST /api/start-claude:在新窗口启动 Claude Code,自动注入 DeepSeek env。"""
+    launch = _find_claude_launch_cmd()
+    if launch and sys.platform == "win32":
+        cmd = [str(launch)]
+        env = None
+        used = f"claude-launch.cmd ({launch})"
+    else:
+        proxy_cfg = Path.home() / ".openai-compatible-mcp" / "proxy.json"
+        api_key = ""
+        base = "https://api.deepseek.com"
+        if proxy_cfg.is_file():
+            try:
+                pj = json.loads(proxy_cfg.read_text(encoding="utf-8")) or {}
+                api_key = (pj.get("deepseek_api_key") or "").strip()
+                base = (pj.get("deepseek_api_base") or base).strip()
+            except Exception:
+                pass
+        base_url = base.rstrip("/") + "/anthropic"
+        env = {
+            "ANTHROPIC_BASE_URL": base_url,
+            "ANTHROPIC_AUTH_TOKEN": api_key,
+            "ANTHROPIC_API_KEY": "",
+            "ANTHROPIC_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro",
+            "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-v4-pro",
+            "CLAUDE_CODE_EFFORT_LEVEL": "max",
+        }
+        import glob
+        import shutil
+        claude_exe: str | None = None
+        if sys.platform == "win32":
+            for cand in [
+                shutil.which("claude"),
+                shutil.which("claude.cmd"),
+                *(glob.glob(r"C:\Users\*\AppData\Local\Microsoft\Windows\WinGet\Packages\anthropic.claude-code_*\anthropic.claude-code\tools\claude.exe") or []),
+                *(glob.glob(os.path.expandvars(r"%APPDATA%\npm\claude.cmd")) or []),
+                *(glob.glob(os.path.expandvars(r"%LOCALAPPDATA%\npm\claude.cmd")) or []),
+            ]:
+                if cand and os.path.isfile(cand):
+                    claude_exe = cand
+                    break
+        else:
+            claude_exe = shutil.which("claude")
+        if not claude_exe:
+            return {
+                "ok": False,
+                "error": "找不到 claude 命令,请先 `npm install -g @anthropic-ai/claude-code`",
+                "command": [],
+            }
+        cmd = [claude_exe]
+        used = f"claude + 注入 env ({claude_exe})"
+
+    ok, msg = _spawn(cmd, env=env)
+    return {"ok": ok, "message": msg, "command": cmd, "used": used}
+
+
+# --------------------------------------------------------------------------- #
 # HTTP server
 # --------------------------------------------------------------------------- #
 
@@ -667,6 +847,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/autostart":
             self._send_json(200, install_autostart())
+            return
+
+        if path == "/api/start-proxy":
+            self._send_json(200, start_proxy_in_window())
+            return
+
+        if path == "/api/start-claude":
+            self._send_json(200, start_claude_in_window())
             return
 
         if path == "/api/open-folder":
