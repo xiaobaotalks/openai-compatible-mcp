@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>openai-compatible-mcp · 创意提案 | TRAE AI 创造力大赛</title>
+<meta name="description" content="一行 pip install 接入任意 OpenAI 兼容 API 到 Claude / Cursor / Codex / Claude Code。学习工作赛道参赛作品。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-0:#0a0c12;--bg-1:#11141b;--bg-2:#181c25;--bg-3:#20252f;
+  --line:#2a3140;--line-2:#3a4356;
+  --fg-0:#e6e8ec;--fg-1:#a4aab8;--fg-2:#6b7280;
+  --cyan:#5eead4;--violet:#a78bfa;--pink:#f472b6;--amber:#fbbf24;--green:#4ade80;--red:#f87171;
+  --font-sans:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'JetBrains Mono','Cascadia Code',Consolas,'SF Mono',monospace;
+  --font-display:'Bricolage Grotesque','Manrope',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--bg-0);color:var(--fg-0);line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:48px 24px 96px}
+.bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:14px 20px;background:rgba(17,20,27,0.65);backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:14px;margin-bottom:32px;position:sticky;top:16px;z-index:10}
+.bar__left{display:flex;align-items:center;gap:12px}
+.bar__logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--violet));display:grid;place-items:center;font-family:var(--font-mono);font-weight:700;font-size:14px;color:#0b0d12}
+.bar__name{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-0.02em}
+.bar__ver{font-family:var(--font-mono);font-size:12px;color:var(--fg-2);padding:3px 8px;border:1px solid var(--line);border-radius:6px}
+.bar__right{display:flex;gap:8px;flex-wrap:wrap}
+.bar__tag{font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--fg-1)}
+.bar__tag.is-cyan{color:var(--cyan);border-color:rgba(94,234,212,0.4);background:rgba(94,234,212,0.08)}
+.bar__tag.is-violet{color:var(--violet);border-color:rgba(167,139,250,0.4);background:rgba(167,139,250,0.08)}
+.bar__tag.is-amber{color:var(--amber);border-color:rgba(251,191,36,0.4);background:rgba(251,191,36,0.08)}
+
+.hero{position:relative;padding:48px 0 56px;text-align:center}
+.hero__eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:20px;display:inline-flex;align-items:center;gap:10px;padding:6px 14px;border:1px solid rgba(94,234,212,0.3);border-radius:999px;background:rgba(94,234,212,0.05)}
+.hero__eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(40px,7vw,84px);line-height:0.95;letter-spacing:-0.04em;margin-bottom:20px;background:linear-gradient(180deg,#fff 0%,#aab3c2 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero h1 .accent{background:linear-gradient(120deg,var(--cyan) 0%,var(--violet) 60%,var(--pink) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero__sub{font-size:clamp(17px,1.8vw,21px);color:var(--fg-1);max-width:760px;margin:0 auto 28px}
+.hero__quote{font-family:var(--font-display);font-style:italic;font-size:clamp(15px,1.6vw,18px);color:var(--fg-1);max-width:680px;margin:32px auto 0;padding:20px 28px;border-left:3px solid var(--violet);background:linear-gradient(90deg,rgba(167,139,250,0.08),transparent);border-radius:0 12px 12px 0;text-align:left}
+.hero__quote::before{content:"“";font-size:48px;color:var(--violet);font-family:serif;line-height:0.1;display:block;margin-bottom:10px}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:40px 0}
+.metric{background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:20px 18px;text-align:left;transition:all 0.2s}
+.metric:hover{transform:translateY(-2px);border-color:var(--cyan);box-shadow:0 8px 30px -10px rgba(94,234,212,0.3)}
+.metric__num{font-family:var(--font-display);font-weight:800;font-size:32px;background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin-bottom:6px}
+.metric__label{font-size:13px;color:var(--fg-1);font-weight:500}
+.metric__sub{font-family:var(--font-mono);font-size:11px;color:var(--fg-2);margin-top:4px}
+
+@media (max-width:780px){.metrics{grid-template-columns:repeat(2,1fr)}.bar{position:static}}
+
+.section{margin:72px 0 0}
+.section__eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--violet);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section__eyebrow::before{content:"//";color:var(--cyan)}
+.section__title{font-family:var(--font-display);font-weight:800;font-size:clamp(28px,4vw,42px);line-height:1.1;letter-spacing:-0.025em;margin-bottom:12px}
+.section__lead{font-size:17px;color:var(--fg-1);max-width:720px;margin-bottom:36px}
+
+.problems{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media (max-width:780px){.problems{grid-template-columns:1fr}}
+.problem{background:linear-gradient(135deg,rgba(248,113,113,0.05),rgba(248,113,113,0.02));border:1px solid rgba(248,113,113,0.2);border-radius:12px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start}
+.problem__icon{flex:0 0 36px;width:36px;height:36px;background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);border-radius:8px;display:grid;place-items:center;font-size:18px;color:var(--red);font-weight:700}
+.problem__body{flex:1}
+.problem__title{font-weight:600;margin-bottom:4px;color:var(--fg-0)}
+.problem__desc{font-size:14px;color:var(--fg-1);line-height:1.5}
+.problem__desc code{font-family:var(--font-mono);font-size:12px;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;color:var(--cyan)}
+
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:0;align-items:stretch;margin:20px 0 0;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+@media (max-width:780px){.flow{grid-template-columns:1fr}}
+.flow__step{padding:24px 20px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--line)}
+.flow__step:last-child{border-right:none}
+@media (max-width:780px){.flow__step{border-right:none;border-bottom:1px solid var(--line)}}
+.flow__num{font-family:var(--font-mono);font-size:11px;color:var(--cyan);letter-spacing:0.1em}
+.flow__icon{font-size:26px;line-height:1}
+.flow__name{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.01em}
+.flow__desc{font-size:13px;color:var(--fg-1);line-height:1.5}
+.flow__cmd{font-family:var(--font-mono);font-size:12px;background:var(--bg-2);padding:6px 10px;border-radius:6px;color:var(--cyan);margin-top:4px;border:1px solid var(--line)}
+.flow__arrow{display:grid;place-items:center;background:var(--bg-2);color:var(--cyan);font-family:var(--font-mono);font-size:18px}
+@media (max-width:780px){.flow__arrow{padding:8px}}
+
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+@media (max-width:980px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.feature-grid{grid-template-columns:1fr}}
+.feature{background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:22px 20px;transition:all 0.2s}
+.feature:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.feature__icon{font-size:24px;margin-bottom:12px;display:inline-block;width:44px;height:44px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;display:grid;place-items:center}
+.feature__title{font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-0.01em;margin-bottom:6px}
+.feature__desc{font-size:14px;color:var(--fg-1);line-height:1.55}
+
+.demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
+@media (max-width:780px){.demo-grid{grid-template-columns:1fr}}
+.demo{background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:10px;transition:all 0.2s;text-decoration:none;color:inherit}
+.demo:hover{border-color:var(--violet);transform:translateY(-2px);box-shadow:0 8px 30px -10px rgba(167,139,250,0.3)}
+.demo__head{display:flex;align-items:center;justify-content:space-between}
+.demo__name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.demo__tag{font-family:var(--font-mono);font-size:10px;padding:3px 8px;border:1px solid var(--line);border-radius:999px;color:var(--fg-2)}
+.demo__tag.is-live{color:var(--green);border-color:rgba(74,222,128,0.4);background:rgba(74,222,128,0.05)}
+.demo__tag.is-code{color:var(--cyan);border-color:rgba(94,234,212,0.4);background:rgba(94,234,212,0.05)}
+.demo__tag.is-pkg{color:var(--amber);border-color:rgba(251,191,36,0.4);background:rgba(251,191,36,0.05)}
+.demo__tag.is-idea{color:var(--violet);border-color:rgba(167,139,250,0.4);background:rgba(167,139,250,0.05)}
+.demo__desc{font-size:14px;color:var(--fg-1)}
+.demo__url{font-family:var(--font-mono);font-size:11px;color:var(--cyan);margin-top:auto;padding-top:6px;border-top:1px dashed var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.compare{display:grid;grid-template-columns:1fr 60px 1fr;gap:0;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:24px}
+@media (max-width:780px){.compare{grid-template-columns:1fr}}
+.compare__col{padding:24px 26px}
+.compare__col.is-mine{background:linear-gradient(180deg,rgba(94,234,212,0.04),transparent)}
+.compare__col.is-them{background:linear-gradient(180deg,rgba(248,113,113,0.04),transparent)}
+.compare__title{font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.compare__title.is-mine{color:var(--cyan)}
+.compare__title.is-them{color:var(--red)}
+.compare ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.compare li{font-size:14px;color:var(--fg-1);padding-left:22px;position:relative;line-height:1.5}
+.compare li::before{content:"×";position:absolute;left:0;color:var(--red);font-weight:700;font-family:var(--font-mono)}
+.compare__col.is-mine li::before{content:"✓";color:var(--green)}
+.compare__divider{background:var(--bg-2);display:grid;place-items:center;font-family:var(--font-mono);font-size:11px;color:var(--fg-2);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+@media (max-width:780px){.compare__divider{border-left:none;border-right:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px}}
+
+.tech-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:20px}
+.tech{background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tech__name{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--cyan);margin-bottom:4px}
+.tech__desc{font-size:12px;color:var(--fg-1);line-height:1.4}
+
+.roadmap{margin-top:20px;position:relative;padding-left:32px}
+.roadmap::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:linear-gradient(180deg,var(--cyan),var(--violet),var(--pink))}
+.roadmap__item{position:relative;padding:0 0 24px 0}
+.roadmap__item:last-child{padding-bottom:0}
+.roadmap__dot{position:absolute;left:-28px;top:6px;width:14px;height:14px;border-radius:50%;background:var(--bg-0);border:3px solid var(--cyan)}
+.roadmap__item.is-done .roadmap__dot{background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+.roadmap__item.is-now .roadmap__dot{border-color:var(--violet);background:var(--violet);box-shadow:0 0 12px var(--violet);animation:pulse 2s ease-in-out infinite}
+.roadmap__ver{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:4px}
+.roadmap__item.is-now .roadmap__ver{color:var(--violet)}
+.roadmap__title{font-weight:600;font-size:15px;margin-bottom:4px}
+.roadmap__desc{font-size:13px;color:var(--fg-1);line-height:1.5}
+
+.cta{text-align:center;margin:80px 0 0;padding:48px 32px;background:linear-gradient(135deg,rgba(94,234,212,0.06),rgba(167,139,250,0.06));border:1px solid var(--line);border-radius:18px}
+.cta h3{font-family:var(--font-display);font-weight:800;font-size:clamp(24px,3.4vw,36px);margin-bottom:12px;letter-spacing:-0.02em}
+.cta p{color:var(--fg-1);margin-bottom:24px;max-width:520px;margin-left:auto;margin-right:auto}
+.cta__row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;transition:all 0.2s;border:1px solid var(--line);font-family:var(--font-sans);background:var(--bg-2);color:var(--fg-0)}
+.btn:hover{transform:translateY(-1px);border-color:var(--cyan)}
+.btn.is-primary{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#0b0d12;border-color:transparent;font-weight:700}
+.btn.is-primary:hover{filter:brightness(1.1);box-shadow:0 8px 24px -6px rgba(94,234,212,0.4)}
+.btn__arrow{transition:transform 0.2s}
+.btn:hover .btn__arrow{transform:translateX(3px)}
+
+.foot{text-align:center;margin-top:48px;padding-top:24px;border-top:1px solid var(--line);color:var(--fg-2);font-size:13px}
+.foot a{color:var(--cyan);text-decoration:none}
+.foot a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bar">
+    <div class="bar__left">
+      <div class="bar__logo">MC</div>
+      <div>
+        <div class="bar__name">openai-compatible-mcp</div>
+      </div>
+      <div class="bar__ver">v0.2.11</div>
+    </div>
+    <div class="bar__right">
+      <span class="bar__tag is-amber">TRAE AI 创造力大赛</span>
+      <span class="bar__tag is-violet">学习工作赛道</span>
+      <span class="bar__tag is-cyan">单人参赛</span>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hero__eyebrow">参赛作品 · 创意提案</div>
+    <h1>一行 <span class="accent">pip install</span><br>把任意 LLM 接入到开发者的本地环境</h1>
+    <p class="hero__sub">
+      解决开发者把 DeepSeek / OpenAI / 千问 / MinMax / mimo 等任意 OpenAI 兼容 API,接进 Claude Desktop、Cursor、Claude Code、Codex CLI 时的
+      <b style="color:var(--cyan)">配置分散、协议不兼容、模型不对齐</b>三大难题。
+    </p>
+    <div class="hero__quote">
+      我希望打开 IDE 就能用 DeepSeek,而不需要去翻 4 份 JSON 配置文件、弄懂 MCP 协议、为 Codex 单独写一个协议翻译层、为 Claude Code 解决登录弹窗。
+      —— 每个在 Claude/Cursor/Codex 间反复切换的开发者
+    </div>
+  </section>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric__num">1</div>
+      <div class="metric__label">行命令装包</div>
+      <div class="metric__sub">pip install openai-compatible-mcp</div>
+    </div>
+    <div class="metric">
+      <div class="metric__num">4</div>
+      <div class="metric__label">MCP 客户端</div>
+      <div class="metric__sub">Claude / Cursor / Claude Code / Codex</div>
+    </div>
+    <div class="metric">
+      <div class="metric__num">6+</div>
+      <div class="metric__label">LLM 提供商</div>
+      <div class="metric__sub">DeepSeek · 千问 · MinMax · mimo · 自定义</div>
+    </div>
+    <div class="metric">
+      <div class="metric__num">0</div>
+      <div class="metric__label">三方依赖</div>
+      <div class="metric__sub">MCP 核心用 Python 标准库</div>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section__eyebrow">痛点 · 为什么做这个</div>
+    <h2 class="section__title">开发者想换模型时,会被 4 道关卡同时卡住</h2>
+    <p class="section__lead">Anthropic 把 MCP 协议开源后,所有 IDE 都在抢着接,但开发者真正想用 DeepSeek 跑 Claude/Cursor/Codex 时,链路比想象中长得多。</p>
+
+    <div class="problems">
+      <div class="problem">
+        <div class="problem__icon">1</div>
+        <div class="problem__body">
+          <div class="problem__title">配置文件 4 份,字段名各不一样</div>
+          <div class="problem__desc">
+            Claude Desktop 用 <code>mcpServers</code>,Cursor 用 <code>mcp_servers</code>,Codex 用 <code>config.toml</code>,Claude Code 用 <code>~/.claude.json</code>。<br>每一份都得手改,字段名 / 嵌套层级 / env 写法各不相同。
+          </div>
+        </div>
+      </div>
+      <div class="problem">
+        <div class="problem__icon">2</div>
+        <div class="problem__body">
+          <div class="problem__title">Codex 协议与 DeepSeek 不兼容</div>
+          <div class="problem__desc">
+            Codex CLI 走 <code>/v1/responses</code> 格式(OpenAI 较新的 Responses API),DeepSeek 只支持 <code>/v1/chat/completions</code>。要么自己写翻译层,要么 Codex 就用不了 DeepSeek。
+          </div>
+        </div>
+      </div>
+      <div class="problem">
+        <div class="problem__icon">3</div>
+        <div class="problem__body">
+          <div class="problem__title">Claude Code 强制登录,跳过难</div>
+          <div class="problem__desc">
+            改了 <code>ANTHROPIC_BASE_URL</code> 之后,Claude Code 仍要求登录 Anthropic 账号。多数用户用 DeepSeek 时根本就没账号,卡在登录界面走不下去。
+          </div>
+        </div>
+      </div>
+      <div class="problem">
+        <div class="problem__icon">4</div>
+        <div class="problem__body">
+          <div class="problem__title">MCP 模板项目要装一堆依赖</div>
+          <div class="problem__desc">
+            现有 MCP server 模板都基于官方 SDK,动辄 <code>pip install mcp pydantic fastapi uvicorn ...</code> 十几个包,Windows 上还要配 venv、SSL、端口冲突排查。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__eyebrow">方案 · 4 步跑通</div>
+    <h2 class="section__title">从一行命令到 IDE 能用,只要 4 步</h2>
+    <p class="section__lead">装包 → 写 Key → 起向导 → 勾客户端。所有模型兼容、所有 IDE 覆盖、所有配置文件自动合并写入。</p>
+
+    <div class="flow">
+      <div class="flow__step">
+        <div class="flow__num">STEP 01</div>
+        <div class="flow__icon">📦</div>
+        <div class="flow__name">装包</div>
+        <div class="flow__desc">一行命令,零三方依赖</div>
+        <div class="flow__cmd">pip install openai-compatible-mcp</div>
+      </div>
+      <div class="flow__arrow">→</div>
+      <div class="flow__step">
+        <div class="flow__num">STEP 02</div>
+        <div class="flow__icon">🔑</div>
+        <div class="flow__name">写 Key</div>
+        <div class="flow__desc">命令行一行,免开浏览器</div>
+        <div class="flow__cmd">openai-compatible-mcp --api-key sk-xxx</div>
+      </div>
+      <div class="flow__arrow">→</div>
+      <div class="flow__step">
+        <div class="flow__num">STEP 03</div>
+        <div class="flow__icon">🧙</div>
+        <div class="flow__name">起向导</div>
+        <div class="flow__desc">浏览器自动开 127.0.0.1:8989</div>
+        <div class="flow__cmd">openai-compatible-mcp</div>
+      </div>
+      <div class="flow__arrow">→</div>
+      <div class="flow__step">
+        <div class="flow__num">STEP 04</div>
+        <div class="flow__icon">🚀</div>
+        <div class="name">勾客户端一键写</div>
+        <div class="flow__desc">Claude / Cursor / Codex / Claude Code</div>
+        <div class="flow__cmd">重启客户端 → 立即能用</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__eyebrow">差异化 · 为什么不是又一个 MCP 模板</div>
+    <h2 class="section__title">所有"边界情况"都已经在 0.2.x 处理掉</h2>
+    <p class="section__lead">直接拿来用,不需要再读 MCP 协议规范、改各种 JSON、写翻译层、测试每个客户端的认证流程。</p>
+
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="feature__icon">⚡</div>
+        <div class="feature__title">Codex 即开即用</div>
+        <div class="feature__desc">内置 Flask 翻译代理,自动装依赖。Codex 启动时直接通过 127.0.0.1:7878 走 DeepSeek,免登免配。</div>
+      </div>
+      <div class="feature">
+        <div class="feature__icon">🪄</div>
+        <div class="feature__title">Claude Code 跳过登录</div>
+        <div class="feature__desc">双写 <code>~/.claude.json</code> 和 <code>~/.claude/settings.json</code>,设置 <code>hasCompletedOnboarding=true</code>,直插 ANTHROPIC_BASE_URL 跳过弹窗。</div>
+      </div>
+      <div class="feature">
+        <div class="feature__icon">📦</div>
+        <div class="feature__title">pip install 即可</div>
+        <div class="feature__desc">向导、翻译代理、Claude 启动器、Key 写入工具全部打进包,一次拿全,Windows / macOS / Linux 通吃。</div>
+      </div>
+      <div class="feature">
+        <div class="feature__icon">🔒</div>
+        <div class="feature__title">零三方依赖</div>
+        <div class="feature__desc">MCP 协议 stdio JSON-RPC 2.0 帧解析用 ~300 行标准库实现。代理的 flask / httpx 仅在启动 <code>--proxy</code> 时按需装。</div>
+      </div>
+      <div class="feature">
+        <div class="feature__icon">🛠️</div>
+        <div class="feature__title">配置合并式写入</div>
+        <div class="feature__desc">写 mcpServers / mcp_servers 走"读 → 合并 → 写"流程,只新增本包条目,你原有的 server 全部保留。卸载时一并清掉。</div>
+      </div>
+      <div class="feature">
+        <div class="feature__icon">🌐</div>
+        <div class="feature__title">6+ 提供商 + 任意兼容端点</div>
+        <div class="feature__desc">默认 DeepSeek / 千问 / MinMax / mimo / OpenAI / 自定义。llama.cpp、vLLM、Ollama OpenAI 兼容模式一行接上。</div>
+      </div>
+    </div>
+
+    <div class="compare">
+      <div class="compare__col is-mine">
+        <div class="compare__title is-mine">✓ 用 openai-compatible-mcp</div>
+        <ul>
+          <li>图形化向导,鼠标点完事</li>
+          <li>6+ 提供商 + 自定义,默认 DeepSeek</li>
+          <li>stdio JSON-RPC 2.0 自实现,零三方依赖</li>
+          <li>Codex / Claude Code 适配已写好,免登录</li>
+          <li>配置合并写入,不动你其他 MCP server</li>
+          <li>代理 / launcher / 向导都打进包</li>
+        </ul>
+      </div>
+      <div class="compare__divider">VS</div>
+      <div class="compare__col is-them">
+        <div class="compare__title is-them">× 自己手搓 MCP server</div>
+        <ul>
+          <li>读 MCP 协议规范,手写 JSON-RPC 帧解析</li>
+          <li>每个客户端改不同位置的 JSON</li>
+          <li>重命名模型字段、写流式 SSE 解析</li>
+          <li>Codex 的 Responses API 不兼容要写翻译层</li>
+          <li>Claude Code env 注入要双写两个文件</li>
+          <li>手动测试每个客户端的认证流程</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__eyebrow">现场体验 · 可点击的 Demo</div>
+    <h2 class="section__title">4 个链接,5 分钟内能跑完整个流程</h2>
+    <p class="section__lead">评审老师无需装任何东西,点开就能看到产品形态与代码质量。</p>
+
+    <div class="demo-grid">
+      <a class="demo" href="https://xiaobaotalks.github.io/openai-compatible-mcp/" target="_blank">
+        <div class="demo__head">
+          <div class="demo__name">落地页 / 产品总览</div>
+          <span class="demo__tag is-live">LIVE</span>
+        </div>
+        <div class="demo__desc">GitHub Pages 上的产品主页,9 大板块展示核心能力:hero 排版、客户端兼容、架构图、6 家提供商、FAQ、对手对比。</div>
+        <div class="demo__url">xiaobaotalks.github.io/openai-compatible-mcp/</div>
+      </a>
+      <a class="demo" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">
+        <div class="demo__head">
+          <div class="demo__name">PyPI 包页面</div>
+          <span class="demo__tag is-pkg">PKG</span>
+        </div>
+        <div class="demo__desc">已经发到 PyPI,0.2.11 版本,审核通过的发布管道,完整 README 与使用说明。pip install 即可装上。</div>
+        <div class="demo__url">pypi.org/project/openai-compatible-mcp/</div>
+      </a>
+      <a class="demo" href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">
+        <div class="demo__head">
+          <div class="demo__name">GitHub 源代码</div>
+          <span class="demo__tag is-code">CODE</span>
+        </div>
+        <div class="demo__desc">完整源码、commit 历史、GitHub Actions 自动发布/Pages 部署工作流、18 个 commit 记录产品迭代过程。</div>
+        <div class="demo__url">github.com/xiaobaotalks/openai-compatible-mcp</div>
+      </a>
+      <a class="demo" href="https://xiaobaotalks.github.io/openai-compatible-mcp/contest/proposal.html" target="_blank">
+        <div class="demo__head">
+          <div class="demo__name">本提案页(可独立打开)</div>
+          <span class="demo__tag is-idea">IDEA</span>
+        </div>
+        <div class="demo__desc">你现在正在看的页面。设计成单页可独立打开的"宣传册",评审打开链接就是一次完整的产品体验。</div>
+        <div class="demo__url">xiaobaotalks.github.io/openai-compatible-mcp/contest/proposal.html</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__eyebrow">技术栈</div>
+    <h2 class="section__title">用最简单的栈,做最对的事</h2>
+    <p class="section__lead">MCP 协议核心用 ~300 行 Python 标准库实现,可读性优先,降低贡献门槛。</p>
+
+    <div class="tech-row">
+      <div class="tech">
+        <div class="tech__name">Python 3.9+</div>
+        <div class="tech__desc">核心运行时,跨平台</div>
+      </div>
+      <div class="tech">
+        <div class="tech__name">MCP stdio</div>
+        <div class="tech__desc">JSON-RPC 2.0 自实现</div>
+      </div>
+      <div class="tech">
+        <div class="tech__name">Flask (optional)</div>
+        <div class="tech__desc">Codex 翻译代理,按需 pip install</div>
+      </div>
+      <div class="tech">
+        <div class="tech__name">httpx (optional)</div>
+        <div class="tech__desc">DeepSeek 上游调用,按需 pip install</div>
+      </div>
+      <div class="tech">
+        <div class="tech__name">build + twine</div>
+        <div class="tech__desc">标准 PyPI 发布工具链</div>
+      </div>
+      <div class="tech">
+        <div class="tech__name">GitHub Actions</div>
+        <div class="tech__desc">自动测试 + Pages 部署</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__eyebrow">路线图 · 真实迭代轨迹</div>
+    <h2 class="section__title">从 v0.1 到 v0.2.11,18 个 commit 都在公开仓库</h2>
+    <p class="section__lead">没有写在 PPT 上的"未来规划",只有已经能用的、已经发版的、已经修过的真实版本。</p>
+
+    <div class="roadmap">
+      <div class="roadmap__item is-done">
+        <div class="roadmap__dot"></div>
+        <div class="roadmap__ver">v0.1.x</div>
+        <div class="roadmap__title">MCP 桥接核心 + 基础向导</div>
+        <div class="roadmap__desc">stdio JSON-RPC 2.0 自实现;DeepSeek / OpenAI 适配;Claude Desktop / Cursor 配置文件合并写入</div>
+      </div>
+      <div class="roadmap__item is-done">
+        <div class="roadmap__dot"></div>
+        <div class="roadmap__ver">v0.2.0 → v0.2.7</div>
+        <div class="roadmap__title">Claude Code 跳过登录 + 启动器</div>
+        <div class="roadmap__desc">双写 ~/.claude.json 和 ~/.claude/settings.json;claude-launch.cmd / .sh 一键脚本;3 种启动方式</div>
+      </div>
+      <div class="roadmap__item is-done">
+        <div class="roadmap__dot"></div>
+        <div class="roadmap__ver">v0.2.8 → v0.2.10</div>
+        <div class="roadmap__title">Codex 翻译代理 + 命令行 Key 写入</div>
+        <div class="roadmap__desc">openai-compatible-mcp-proxy 启动 127.0.0.1:7878;--api-key 一行写 Key 不用开浏览器;proxy.json 落盘</div>
+      </div>
+      <div class="roadmap__item is-done">
+        <div class="roadmap__dot"></div>
+        <div class="roadmap__ver">v0.2.11</div>
+        <div class="roadmap__title">内嵌 Web UI,改 Key / 模型 / 上游免重启</div>
+        <div class="roadmap__desc">127.0.0.1:7878 不再是冷冰冰的 JSON,变成可点击的暗色控制台;Key 遮罩显示,测试连接按钮</div>
+      </div>
+      <div class="roadmap__item is-now">
+        <div class="roadmap__dot"></div>
+        <div class="roadmap__ver">v0.2.12+ · 下一步</div>
+        <div class="roadmap__title">多代理实例 + Windows 服务化 + Linux systemd unit</div>
+        <div class="roadmap__desc">让 Codex / Claude Code / Cursor 同时共享一个 Key 但走不同的 base_url;开机自启 proxy,云电脑场景零配置</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cta">
+    <h3>1 分钟装上,5 分钟跑通整个流程</h3>
+    <p>一行 pip install,浏览器向导点 4 下,4 个 IDE 全部能用 DeepSeek。Codex 跳过登录,Claude Code 跳过登录,Cursor 跳过 JSON。</p>
+    <div class="cta__row">
+      <a class="btn is-primary" href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">
+        PyPI 装包 <span class="btn__arrow">→</span>
+      </a>
+      <a class="btn" href="https://xiaobaotalks.github.io/openai-compatible-mcp/" target="_blank">
+        落地页 / 完整产品 <span class="btn__arrow">→</span>
+      </a>
+      <a class="btn" href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">
+        GitHub 源码 <span class="btn__arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="foot">
+    参赛作品 · <a href="https://github.com/xiaobaotalks/openai-compatible-mcp">openai-compatible-mcp</a> · 参赛赛道:学习工作 · 作者:xiaobaotalks · v0.2.11 · 2026-06
+  </div>
+
+</div>
+</body>
+</html>
