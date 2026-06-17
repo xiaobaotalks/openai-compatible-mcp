@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>openai-compatible-mcp · MCP 桥接 DeepSeek / OpenAI / 任意兼容端点</title>
-  <meta name="description" content="把任意 OpenAI 兼容的 API 接入 Claude Desktop、Cursor、Claude Code、Codex。DeepSeek / OpenAI / 千问 / MinMax / mimo 全部支持。pip install 一行,完全本地运行。" />
+  <meta name="description" content="把任意 OpenAI 兼容的 API 接入 Claude Desktop、Cursor、Claude Code、Codex。DeepSeek / OpenAI / 千问 / 智谱 / 小米 mimo 全部支持。pip install 一行,完全本地运行。" />
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2338d3ff'/><path d='M10 12h12M10 16h12M10 20h8' stroke='%23000' stroke-width='2' stroke-linecap='round'/></svg>" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1005,7 +1005,7 @@
     <header class="hero">
       <div class="hero__badges">
         <span class="badge is-cyan"><span class="badge__dot"></span>MIT</span>
-        <span class="badge is-green">v0.2.10</span>
+        <span class="badge is-green">v0.2.21</span>
         <span class="badge is-violet">零三方依赖</span>
         <span class="badge is-amber">Codex + Claude Code 适配</span>
         <span class="badge">Python 3.9+</span>
@@ -1053,7 +1053,7 @@
             <code id="q1">pip install openai-compatible-mcp</code>
             <button class="copybtn" data-copy="q1">复制</button>
           </div>
-          <div class="cmd-line"><span class="dim">Successfully installed openai-compatible-mcp-0.2.10</span></div>
+          <div class="cmd-line"><span class="dim">Successfully installed openai-compatible-mcp-0.2.21</span></div>
           <div class="cmd-line copyrow">
             <span class="prompt">$</span>
             <code id="q2">openai-compatible-mcp --api-key sk-你的DeepSeekKey</code>
@@ -1070,12 +1070,12 @@
       </div>
 
       <div class="whatsnew">
-        <span class="whatsnew__tag">v0.2.10</span>
+        <span class="whatsnew__tag">v0.2.21</span>
         <div class="whatsnew__items">
-          <span class="whatsnew__item"><span class="dot"></span><b>--api-key</b> 一行写 Key(免开浏览器)</span>
-          <span class="whatsnew__item"><span class="dot"></span>proxy 友好 <code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg-3);color:var(--cyan);">/</code> 页</span>
-          <span class="whatsnew__item"><span class="dot"></span>Codex · Claude Code 适配</span>
-          <span class="whatsnew__item"><span class="dot"></span>port-7878 防冲突</span>
+          <span class="whatsnew__item"><span class="dot"></span><b>Codex 0.140+</b> 兼容(避开 <code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg-3);color:var(--cyan);">openai_*</code> 保留名)</span>
+          <span class="whatsnew__item"><span class="dot"></span>Codex 走 <b>直连 API</b>(不再卡 30s MCP 启动超时)</span>
+          <span class="whatsnew__item"><span class="dot"></span>TOML 配置 <b>合并 + 去重</b></span>
+          <span class="whatsnew__item"><span class="dot"></span>port-7878 / 8989 防冲突</span>
         </div>
       </div>
     </header>
@@ -1095,7 +1095,7 @@
             <div>
               <div class="mockup__title">环境自检</div>
               <div class="mockup__row"><span class="mockup__dot"></span>Python 3.12.1</div>
-              <div class="mockup__row"><span class="mockup__dot"></span>openai-compatible-mcp v0.2.10</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>openai-compatible-mcp v0.2.21</div>
               <div class="mockup__row"><span class="mockup__dot"></span>已检测 Claude Desktop / Cursor / Claude Code 路径</div>
             </div>
           </div>
@@ -1171,7 +1171,7 @@
         <div class="feature is-violet">
           <div class="feature__icon">🌐</div>
           <div class="feature__title">6+ 提供商</div>
-          <div class="feature__desc">DeepSeek / OpenAI / 千问 / MinMax / mimo / 自定义;只要有 <code>/v1/chat/completions</code> 就能用。</div>
+          <div class="feature__desc">DeepSeek / OpenAI / 千问 / 智谱 / mimo / 自定义;只要有 <code>/v1/chat/completions</code> 就能用。</div>
         </div>
       </div>
     </section>
@@ -1275,7 +1275,7 @@
         <div class="step-card">
           <div class="step-card__num">02</div>
           <div class="step-card__title">填 API key,点"测试连接"</div>
-          <div class="step-card__desc">从下拉里选 DeepSeek / OpenAI / 千问 / MinMax / mimo / 自定义,粘 key,点一下就发请求验通。</div>
+          <div class="step-card__desc">从下拉里选 DeepSeek / OpenAI / 千问 / 智谱 / mimo / 自定义,粘 key,点一下就发请求验通。</div>
         </div>
         <div class="step-card">
           <div class="step-card__num">03</div>
@@ -1321,7 +1321,7 @@
       <div class="block__head">
         <div class="block__eyebrow">// 兼容的提供商</div>
         <h2 class="block__title">支持 6 个内置提供商,以及任何 OpenAI 兼容端点</h2>
-        <p class="block__desc">只要暴露 <code>/v1/chat/completions</code> 就能用。OpenAI 官方、DeepSeek、千问 (DashScope)、MinMax、mimo (小米)、Together、llama.cpp、vLLM、LM Studio、本地 Ollama 走 OpenAI 兼容模式,全部支持。</p>
+        <p class="block__desc">只要暴露 <code>/v1/chat/completions</code> 就能用。OpenAI 官方、DeepSeek、千问 (DashScope)、智谱 (GLM)、mimo (小米)、Together、llama.cpp、vLLM、LM Studio、本地 Ollama 走 OpenAI 兼容模式,全部支持。</p>
       </div>
 
       <div class="providers">
@@ -1347,10 +1347,10 @@
           </div>
         </div>
         <div class="provider provider--minimax">
-          <div class="provider__logo">MM</div>
+          <div class="provider__logo">ZM</div>
           <div>
-            <div class="provider__name">MinMax</div>
-            <div class="provider__hint">api.minimaxi.com/v1</div>
+            <div class="provider__name">智谱 (GLM)</div>
+            <div class="provider__hint">open.bigmodel.cn/api/paas/v4</div>
           </div>
         </div>
         <div class="provider provider--mimo">
@@ -1475,7 +1475,7 @@
           <div class="compare__title">用 openai-compatible-mcp</div>
           <ul class="compare__list">
             <li>图形化向导,鼠标点完事</li>
-            <li>支持 6+ 提供商,默认 DeepSeek / 千问 / MinMax / mimo</li>
+            <li>支持 6+ 提供商,默认 DeepSeek / 千问 / 智谱 / mimo</li>
             <li>stdio JSON-RPC 2.0,自实现,无依赖</li>
             <li>Codex / Claude Code 适配已写好</li>
             <li>配置是合并式,不动你其他 MCP</li>
@@ -1498,7 +1498,7 @@
 
     <footer>
       <div class="foot">
-        <div>openai-compatible-mcp · MIT License · v0.2.10</div>
+        <div>openai-compatible-mcp · MIT License · v0.2.21</div>
         <div class="foot__links">
           <a href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">GitHub</a>
           <a href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">PyPI</a>

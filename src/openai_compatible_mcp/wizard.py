@@ -48,7 +48,7 @@ except (ImportError, ValueError):
     try:
         from openai_compatible_mcp import __version__  # 路径 1b:绝对导入
     except ImportError:
-        __version__ = "0.2.20"  # 兜底
+        __version__ = "0.2.21"  # 兜底
 
 # 在 PyPI 装的包里,wizard.py 跟 wizard_index.html 在同一目录 (site-packages/.../wizard_index.html)
 # 在开发仓库里,也可能走 setup/index.html(兼容老 setup/server.py)。
