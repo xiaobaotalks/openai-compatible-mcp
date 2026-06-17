@@ -239,18 +239,23 @@ def _codex_config_path() -> Path:
 
 
 def _strip_toml_section(text: str, header: str) -> str:
-    """从 TOML 文本中移除 [header] 段(到下一个 [section] 或 EOF)。"""
+    """从 TOML 文本中移除 [header] 段,顺带剥所有 [header.*] 子段(防 duplicate key)。"""
     out: list[str] = []
-    in_section = False
+    stripping = False
+    bare = header.strip("[]")
+    sub_prefix = f"[{bare}."
     for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("[") and not stripped.startswith("[["):
-            if in_section:
-                in_section = False
-            if stripped == header:
-                in_section = True
+        s = line.strip()
+        is_header = s.startswith("[") and not s.startswith("[[") and s.endswith("]")
+        if is_header:
+            if s == header:
+                stripping = True
                 continue
-        if not in_section:
+            if stripping:
+                if s.startswith(sub_prefix):
+                    continue
+                stripping = False
+        if not stripping:
             out.append(line)
     return "\n".join(out)
 

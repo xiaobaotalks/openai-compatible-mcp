@@ -236,18 +236,30 @@ def _codex_config_path() -> Path:
 
 
 def _strip_toml_section(text: str, header: str) -> str:
-    """从 TOML 文本中移除 [header] 段(到下一个 [section] 或 EOF)。"""
+    """从 TOML 文本中移除 [header] 段(到下一个 [section] 或 EOF),
+    同时移除所有 [header.*] 子段(嵌套 table 也清),避免 v0.2.13 的
+    duplicate-key bug:旧版只剥到下一行 [,留下 [mcp_servers.X.env] 孤儿段,
+    重新写时变成 [mcp_servers.X.env] x 2。
+    """
     out: list[str] = []
-    in_section = False
+    stripping = False
+    bare = header.strip("[]")  # e.g. "mcp_servers.openai_compatible_mcp"
+    sub_prefix = f"[{bare}."
     for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("[") and not stripped.startswith("[["):
-            if in_section:
-                in_section = False  # 已经是下一段,退出剥除
-            if stripped == header:
-                in_section = True
+        s = line.strip()
+        is_header = s.startswith("[") and not s.startswith("[[") and s.endswith("]")
+        if is_header:
+            if s == header:
+                stripping = True
                 continue
-        if not in_section:
+            if stripping:
+                # 当前还在剥除模式,刚遇到新 header
+                # 如果是 [X.xxx] 子段,继续剥;否则停止剥
+                if s.startswith(sub_prefix):
+                    continue
+                stripping = False
+                # 落到下面正常输出
+        if not stripping:
             out.append(line)
     return "\n".join(out)
 
