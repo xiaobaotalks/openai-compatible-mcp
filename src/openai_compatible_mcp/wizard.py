@@ -37,6 +37,19 @@ PORT = 8989
 PACKAGE_NAME = "openai-compatible-mcp"
 PYPI_URL = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
 
+# v0.2.20: 兜底版本号导入 — wizard 跑在三种环境里
+#   1) site-packages 里:`python -m openai_compatible_mcp` → __package__ = "openai_compatible_mcp",相对导入 OK
+#   2) 开发仓库里:`python wizard.py` (作为顶层脚本) → __package__ = "",相对导入会崩
+#   3) setup/ 里的老 server.py — 那是另一个文件
+# 一次 try 完所有路径,失败用硬编码兜底,绝不 NameError
+try:
+    from . import __version__  # 路径 1
+except (ImportError, ValueError):
+    try:
+        from openai_compatible_mcp import __version__  # 路径 1b:绝对导入
+    except ImportError:
+        __version__ = "0.2.20"  # 兜底
+
 # 在 PyPI 装的包里,wizard.py 跟 wizard_index.html 在同一目录 (site-packages/.../wizard_index.html)
 # 在开发仓库里,也可能走 setup/index.html(兼容老 setup/server.py)。
 _WIZARD_DIR = Path(__file__).resolve().parent
@@ -273,7 +286,7 @@ def _merge_codex_config(
     2) 顶头加 # written-by 标记,以后打开 config 就能看到 wizard 是哪个版本跑的
     """
     import re
-    from . import __version__
+    # __version__ 用模块级变量(已 try-import 过),不重新相对导入
 
     text = existing
     # 1) 入口剥 BOM(双重保险)
@@ -906,12 +919,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"index.html not found next to server.py")
                 return
             data = INDEX_HTML.read_bytes()
-            # v0.2.17: 注入版本号到 <title> 标签,让用户打开 8989 就能确认是哪个 wizard
-            try:
-                from . import __version__ as _v
-                data = data.replace(b"v__VERSION__", f"v{_v}".encode("utf-8"), 1)
-            except Exception:
-                pass
+            # v0.2.20: 用模块级 __version__(已 try-import 兜底),不再相对导入
+            data = data.replace(b"v__VERSION__", f"v{__version__}".encode("utf-8"), 1)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
