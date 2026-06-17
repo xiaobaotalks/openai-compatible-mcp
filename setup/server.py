@@ -498,7 +498,7 @@ def _build_codex_blocks(base_url: str, model: str, env_key: str, api_key: str) -
         f'base_url = "{base}"\n'
         f'experimental_bearer_token = "{safe_key}"\n'
         f'env_key = "OPENAI_COMPATIBLE_MCP_API_KEY"\n'
-        f'wire_api = "chat"\n'
+        f'wire_api = "responses"\n'  # Codex 0.140+ 弃用 "chat",本地代理 (D:\AItext\codex\proxy) 已支持 /v1/responses
     )
     mcp_block = (
         f"[mcp_servers.{provider_key}]\n"
