@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openai-compatible-mcp"
-version = "0.2.18"
+version = "0.2.19"
 description = "MCP server that bridges to any OpenAI-compatible chat API (DeepSeek, OpenAI, Azure, local llama.cpp, etc.)."
 readme = "README.md"
 license = "MIT"

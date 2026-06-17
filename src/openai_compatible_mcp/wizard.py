@@ -16,6 +16,7 @@ import http.server
 import json
 import os
 import platform
+import re
 import shutil
 import socketserver
 import subprocess
@@ -1037,13 +1038,29 @@ def main() -> int:
         webbrowser.open(f"http://{HOST}:{PORT}/")
         return 0
 
-    httpd = socketserver.TCPServer((HOST, PORT), Handler)
-    info(f"listening on http://{HOST}:{PORT}")
+    # v0.2.19: 端口 fallback — 8989 被占时自动试 8990..8999
+    actual_port = PORT
+    for try_port in range(PORT, PORT + 10):
+        try:
+            socketserver.TCPServer.allow_reuse_address = True
+            httpd = socketserver.TCPServer((HOST, try_port), Handler)
+            actual_port = try_port
+            if try_port != PORT:
+                info(f"⚠ port {PORT} 已被占,改用 {try_port}")
+            break
+        except OSError as e:
+            if e.errno in (98, 10048):  # EADDRINUSE on linux / windows
+                continue
+            raise
+    else:
+        info(f"✗ port {PORT}..{PORT+9} 全被占,无法启动 wizard")
+        return 1
+    info(f"listening on http://{HOST}:{actual_port}")
 
     # Open browser in background, 1.5s delay to let the server start
     def _open():
         time.sleep(1.5)
-        webbrowser.open(f"http://{HOST}:{PORT}/")
+        webbrowser.open(f"http://{HOST}:{actual_port}/")
     threading.Thread(target=_open, daemon=True).start()
 
     try:
