@@ -313,8 +313,11 @@ def _atomic_write_json(path: Path, data: dict) -> None:
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
+    """原子写 + 强制 utf-8 无 BOM(TOML 不接受 BOM)。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
+    if text.startswith("\ufeff"):
+        text = text[1:]
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
 
@@ -446,7 +449,8 @@ def configure_clients(
         p = _codex_config_path()
         existing_text = ""
         if p.exists():
-            existing_text = p.read_text(encoding="utf-8")
+            # utf-8-sig 自动剥前导 BOM(v0.2.16 修的就是这个)
+            existing_text = p.read_text(encoding="utf-8-sig")
         # Codex 默认走本地代理 127.0.0.1:7878(走 D:\AItext\codex\proxy\ 下的 Flask 代理
         # 把 Codex 格式翻译成 DeepSeek 格式);若用户没填,fallback 到主 base_url。
         codex_url = (codex_base_url or "http://127.0.0.1:7878").rstrip("/")
