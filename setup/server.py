@@ -12,7 +12,7 @@ Pure stdlib so it runs on any Python 3.9+ without installing anything.
 """
 from __future__ import annotations
 
-__version__ = "0.2.18"  # 与 src/openai_compatible_mcp/__init__.py 同步;改完别忘了两边都改
+__version__ = "0.2.21"  # 与 src/openai_compatible_mcp/__init__.py 同步;改完别忘了两边都改
 
 import http.server
 import json
@@ -267,6 +267,34 @@ def _strip_toml_section(text: str, header: str) -> str:
     return "\n".join(out)
 
 
+def _strip_any_section(text: str, header_regex: str) -> str:
+    """v0.2.21 新增:按正则匹配段头,剥掉该段 + 所有子段(header.X.*)。
+    用于:不管用户之前用的是什么 provider 名, 全部剥干净。
+    """
+    pat = re.compile(header_regex)
+    out: list[str] = []
+    stripping = False
+    current_strip_prefix = None
+    for line in text.splitlines():
+        s = line.strip()
+        is_header = s.startswith("[") and not s.startswith("[[") and s.endswith("]")
+        if is_header:
+            if stripping:
+                if current_strip_prefix and s.startswith(current_strip_prefix + "."):
+                    continue
+                stripping = False
+                current_strip_prefix = None
+            if pat.match(s):
+                stripping = True
+                bare_match = re.match(r"\[([^\]]+)\]", s)
+                if bare_match:
+                    current_strip_prefix = bare_match.group(1)
+                continue
+        if not stripping:
+            out.append(line)
+    return "\n".join(out)
+
+
 def _merge_codex_config(
     existing: str,
     model: str,
@@ -293,40 +321,31 @@ def _merge_codex_config(
     text = text.lstrip("\n\r ")
     text = f"# written by openai-compatible-mcp v{__version__} (utf-8, no BOM)\n" + text
 
-    # 3) 顶栏 model = "..."(有就替换,没有就插在 written-by 之后)
-    text, n_model = re.subn(
-        r'^[ \t]*model[ \t]*=.*$',
-        f'model = "{model}"',
+    # 3) 顶栏 model = "..."(v0.2.21:剥掉所有再插 1 个, 修复 v0.2.20 重复 model 行的 bug)
+    text = re.sub(r'^[ \t]*model[ \t]*=.*\n?', '', text, flags=re.MULTILINE)
+    text = re.sub(
+        r'^(# written by openai-compatible-mcp v[^\n]*\n)',
+        r'\1model = "' + model + '"\n',
         text,
-        flags=re.MULTILINE,
+        count=1,
     )
-    if n_model == 0:
-        # 插在 written-by 那行后面,而不是最前
-        text = re.sub(
-            r'^(# written by openai-compatible-mcp v[^\n]*\n)',
-            r'\1model = "' + model + '"\n',
-            text,
-            count=1,
-        )
 
-    # 2) 顶栏 model_provider = "..."(同理)
-    text, n_mp = re.subn(
-        r'^[ \t]*model_provider[ \t]*=.*$',
-        f'model_provider = "{provider_key}"',
+    # 4) 顶栏 model_provider = "..."(同理剥干净再插 1 个)
+    text = re.sub(r'^[ \t]*model_provider[ \t]*=.*\n?', '', text, flags=re.MULTILINE)
+    text = re.sub(
+        r'^(model = "[^"]*"\n)',
+        r'\1model_provider = "' + provider_key + '"\n',
         text,
+        count=1,
         flags=re.MULTILINE,
     )
-    if n_mp == 0:
-        # 插在 model 那行后面
-        text = re.sub(
-            r'^(model = "[^"]*"\n)',
-            r'\1model_provider = "' + provider_key + '"\n',
-            text,
-            count=1,
-            flags=re.MULTILINE,
-        )
 
     # 3) 删掉任何旧的同 key 段(避免重复块)
+    # v0.2.21:先剥掉任何旧的 [model_providers.X] / [mcp_servers.X] 段(不管 X 是什么),
+    #   万一用户之前用过 openai_compatible_mcp 这种名字(codex 0.140+ 报 built-in 冲突)
+    text = _strip_any_section(text, r"\[model_providers\.[^\]]+\]")
+    text = _strip_any_section(text, r"\[mcp_servers\.[^\]]+\]")
+    # 再剥掉当前 provider_key 的(双重保险)
     text = _strip_toml_section(text, f"[model_providers.{provider_key}]")
     text = _strip_toml_section(text, f"[mcp_servers.{provider_key}]")
 
@@ -525,7 +544,7 @@ def configure_clients(
         merged = _merge_codex_config(
             existing_text,
             model=model,
-            provider_key="openai_compatible_mcp",
+            provider_key="openai_compatible",  # v0.2.21:避开 codex 内置 'openai' 保留名
             provider_block=provider_block,
             mcp_block=mcp_block,
         )
@@ -538,49 +557,29 @@ def configure_clients(
 def _build_codex_toml(base_url: str, model: str, env_key: str, api_key: str) -> str:
     """兼容旧调用:直接返回完整片段(不推荐,会被 _build_codex_blocks + merge 替代)。"""
     provider, mcp = _build_codex_blocks(base_url, model, env_key, api_key)
-    return f'model = "{model}"\nmodel_provider = "openai_compatible_mcp"\n\n{provider}\n\n{mcp}\n'
+    return f'model = "{model}"\nmodel_provider = "openai_compatible"\n\n{provider}\n\n{mcp}\n'
 
 
 def _build_codex_blocks(base_url: str, model: str, env_key: str, api_key: str) -> tuple[str, str]:
     """返回 (provider_block, mcp_block) 两个独立 TOML 段。
 
-    Codex 0.140+ 实际读取的格式(从 openai/codex 源码):
-        model = "<default model>"
-        model_provider = "<provider key>"
-
-        [model_providers.<key>]
-        name = "<display name>"
-        base_url = "<http://host:port/v1>"
-        env_key = "<ENV var containing the api key>"
-            # 或:
-        experimental_bearer_token = "<api key 直接嵌入>"
-        wire_api = "chat"   # or "responses"
-
-    旧版本会输出 OPENAI_COMPATIBLE_MCP_* 顶层变量,Codex 完全不认,
-    反而会被 TOML 解析器拒绝。这里改用 Codex 原生格式。
+    v0.2.21 重构(从用户云电脑反馈):
+    - provider_key: openai_compatible_mcp -> openai_compatible(避开 codex 内置 'openai' 冲突)
+    - 不再写 [mcp_servers.X] 段:openai-compatible-mcp 已经独立跑在 7878,codex 启动子进程会超时
+    - 用 api_key 直接嵌入(不是 experimental_bearer_token)
     """
     base = base_url.rstrip("/") or "https://api.deepseek.com"
     if not base.endswith("/v1"):
         base = base + "/v1"
-    provider_key = "openai_compatible_mcp"
+    provider_key = "openai_compatible"
     safe_key = api_key.replace("\\", "\\\\").replace('"', '\\"')
     provider_block = (
         f"[model_providers.{provider_key}]\n"
         f'name = "OpenAI Compatible"\n'
         f'base_url = "{base}"\n'
-        f'experimental_bearer_token = "{safe_key}"\n'
-        f'env_key = "OPENAI_COMPATIBLE_MCP_API_KEY"\n'
-        f'wire_api = "responses"\n'  # Codex 0.140+ 弃用 "chat",本地代理 (D:\AItext\codex\proxy) 已支持 /v1/responses
+        f'api_key = "{safe_key}"\n'
     )
-    mcp_block = (
-        f"[mcp_servers.{provider_key}]\n"
-        f'command = "openai-compatible-mcp"\n'
-        f'args = []\n'
-        f'\n[mcp_servers.{provider_key}.env]\n'
-        f'OPENAI_COMPATIBLE_MCP_API_KEY = "{safe_key}"\n'
-        f'OPENAI_COMPATIBLE_MCP_BASE_URL = "{base_url.rstrip("/") or "https://api.deepseek.com"}"\n'
-        f'OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL = "{model}"\n'
-    )
+    mcp_block = ""  # v0.2.21:不写 [mcp_servers.X] 段
     return provider_block, mcp_block
 
 

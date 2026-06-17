@@ -274,6 +274,41 @@ def _strip_toml_section(text: str, header: str) -> str:
     return "\n".join(out)
 
 
+def _strip_any_section(text: str, header_regex: str) -> str:
+    """v0.2.21 新增:按正则匹配段头,剥掉该段 + 所有子段(header.X.*)。
+    用于:不管用户之前用的是什么 provider 名, 全部剥干净。
+    """
+    import re as _re
+    out: list[str] = []
+    # 匹配: [model_providers.openai_compatible_mcp] [model_providers.openai_compatible_mcp.env] 等
+    # 规则:header_match 必须以 "[abc.def]" 开头(不嵌在别的段里)
+    pat = _re.compile(header_regex)
+    stripping = False
+    current_strip_prefix = None
+    for line in text.splitlines():
+        s = line.strip()
+        is_header = s.startswith("[") and not s.startswith("[[") and s.endswith("]")
+        if is_header:
+            if stripping:
+                # 看是否子段(继承上一段)
+                if current_strip_prefix and s.startswith(current_strip_prefix + "."):
+                    continue
+                # 不是子段, 停止 strip
+                stripping = False
+                current_strip_prefix = None
+            if pat.match(s):
+                stripping = True
+                # 提取 bare header (e.g. "model_providers.openai_compatible_mcp")
+                # 用于匹配子段 [model_providers.openai_compatible_mcp.env]
+                bare_match = _re.match(r"\[([^\]]+)\]", s)
+                if bare_match:
+                    current_strip_prefix = bare_match.group(1)
+                continue
+        if not stripping:
+            out.append(line)
+    return "\n".join(out)
+
+
 def _merge_codex_config(
     existing: str,
     model: str,
@@ -301,36 +336,37 @@ def _merge_codex_config(
     text = text.lstrip("\n\r ")
     text = f"# written by openai-compatible-mcp v{__version__} (utf-8, no BOM)\n" + text
 
-    text, n_model = re.subn(
-        r'^[ \t]*model[ \t]*=.*$',
-        f'model = "{model}"',
+    # v0.2.21:无论原文件有几行 model, 全部剥掉再插一个, 保证只 1 个
+    #   (v0.2.20 的 re.subn bug: 找到 2 个匹配, 把它们都替换为新值, 文本里还是 2 个)
+    text = re.sub(r'^[ \t]*model[ \t]*=.*\n?', '', text, flags=re.MULTILINE)
+    text = re.sub(
+        r'^(# written by openai-compatible-mcp v[^\n]*\n)',
+        r'\1model = "' + model + '"\n',
         text,
+        count=1,
+    )
+
+    # v0.2.21:同理剥掉所有 model_provider, 再插 1 个
+    text = re.sub(r'^[ \t]*model_provider[ \t]*=.*\n?', '', text, flags=re.MULTILINE)
+    text = re.sub(
+        r'^(model = "[^"]*"\n)',
+        r'\1model_provider = "' + provider_key + '"\n',
+        text,
+        count=1,
         flags=re.MULTILINE,
     )
-    if n_model == 0:
-        # 插在 written-by 那行后面,而不是最前
-        text = re.sub(
-            r'^(# written by openai-compatible-mcp v[^\n]*\n)',
-            r'\1model = "' + model + '"\n',
-            text,
-            count=1,
-        )
 
-    text, n_mp = re.subn(
-        r'^[ \t]*model_provider[ \t]*=.*$',
-        f'model_provider = "{provider_key}"',
-        text,
-        flags=re.MULTILINE,
-    )
-    if n_mp == 0:
-        text = re.sub(
-            r'^(model = "[^"]*"\n)',
-            r'\1model_provider = "' + provider_key + '"\n',
-            text,
-            count=1,
-            flags=re.MULTILINE,
-        )
+    # v0.2.21:剥掉任何旧的 [model_providers.X] 段, 不管 X 是什么
+    #   (用户可能之前用过 openai_compatible_mcp 这个名字, codex 0.140+ 报 "reserved built-in")
+    text = _strip_any_section(text, r"\[model_providers\.[^\]]+\]")
+    # v0.2.21:剥掉任何旧的 [mcp_servers.X] 段(以及子段), 不管 X 是什么
+    #   (用户改用直接 API 模式, 不再需要 MCP 子进程)
+    text = _strip_any_section(text, r"\[mcp_servers\.[^\]]+\]")
 
+    # v0.2.21:显式追加 model_provider 后面一定是新名字(provider_key),
+    #   兜底 _strip_any_section 把 model_providers 段都剥了之后重新生成一遍
+    # (实际逻辑上, _strip_toml_section 只要剥 provider_key 这一个就好, 但 v0.2.21 改成
+    #  "剥全部 [model_providers.*]" 更安全 — 万一用户之前自己手写过别的 provider)
     text = _strip_toml_section(text, f"[model_providers.{provider_key}]")
     text = _strip_toml_section(text, f"[mcp_servers.{provider_key}]")
 
@@ -528,7 +564,7 @@ def configure_clients(
         merged = _merge_codex_config(
             existing_text,
             model=model,
-            provider_key="openai_compatible_mcp",
+            provider_key="openai_compatible",  # v0.2.21:避开 codex 内置 'openai' 保留名
             provider_block=provider_block,
             mcp_block=mcp_block,
         )
@@ -576,29 +612,29 @@ def _build_codex_toml(base_url: str, model: str, env_key: str, api_key: str) -> 
 
 
 def _build_codex_blocks(base_url: str, model: str, env_key: str, api_key: str) -> tuple[str, str]:
-    """返回 (provider_block, mcp_block) 两个独立 TOML 段。"""
+    """返回 (provider_block, mcp_block) 两个独立 TOML 段。
+
+    v0.2.21 重构:
+    - provider_key: openai_compatible_mcp -> openai_compatible(避开 codex 内置 openai 冲突)
+    - 不再写 [mcp_servers.X] 段:用户场景下 openai-compatible-mcp 已经独立跑在 7878,
+      codex 自己启动 MCP 子进程会 30 秒超时。直接 API 模式更稳。
+    - 用 api_key = "sk-..."(不是 experimental_bearer_token)— 后者在 codex 0.140+ 已弃用
+    - 不再写 env_key / wire_api(直接 API 模式不需要,proxy 127.0.0.1:7878 已处理格式转换)
+    """
     base = base_url.rstrip("/") or "https://api.deepseek.com"
     if not base.endswith("/v1"):
         base = base + "/v1"
-    provider_key = "openai_compatible_mcp"
+    # v0.2.21:避开 codex 内置 'openai' 保留名,用 'openai_compatible' 替代
+    provider_key = "openai_compatible"
     safe_key = api_key.replace("\\", "\\\\").replace('"', '\\"')
     provider_block = (
         f"[model_providers.{provider_key}]\n"
         f'name = "OpenAI Compatible"\n'
         f'base_url = "{base}"\n'
-        f'experimental_bearer_token = "{safe_key}"\n'
-        f'env_key = "OPENAI_COMPATIBLE_MCP_API_KEY"\n'
-        f'wire_api = "responses"\n'  # Codex 0.140+ 弃用 "chat",本地代理 (D:\AItext\codex\proxy) 已支持 /v1/responses
+        f'api_key = "{safe_key}"\n'
     )
-    mcp_block = (
-        f"[mcp_servers.{provider_key}]\n"
-        f'command = "openai-compatible-mcp"\n'
-        f'args = []\n'
-        f'\n[mcp_servers.{provider_key}.env]\n'
-        f'OPENAI_COMPATIBLE_MCP_API_KEY = "{safe_key}"\n'
-        f'OPENAI_COMPATIBLE_MCP_BASE_URL = "{base_url.rstrip("/") or "https://api.deepseek.com"}"\n'
-        f'OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL = "{model}"\n'
-    )
+    # v0.2.21:不写 mcp_block(返回空字符串),_merge_codex_config 会自动忽略
+    mcp_block = ""
     return provider_block, mcp_block
 
 
