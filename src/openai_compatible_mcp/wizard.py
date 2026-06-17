@@ -323,7 +323,42 @@ def _merge_codex_config(
     if text and not text.endswith("\n"):
         text += "\n"
     text += "\n" + provider_block.rstrip() + "\n\n" + mcp_block.rstrip() + "\n"
+
+    # v0.2.18 最后防线:剥掉任何"未在白名单里的不可见字符"
+    # (用户云电脑 v0.2.17 报 line 2 col 1 invalid unquoted key,但 byte 层无 EF BB BF BOM,
+    # 说明有别的不可见字符在污染 — 可能是 ZWSP/ZWNBSP/RTL/LTR 控制符等)
+    # 允许:换行/回车/制表符/普通 ASCII(>=0x20) + 任意中文字符
+    text = _strip_invisible_chars(text)
     return text
+
+
+# v0.2.18 引入:剥掉非 ASCII 不可见字符
+# 保留:0x09 \t, 0x0A \n, 0x0D \r, 0x20+ 可打印 ASCII,任意中文字符(>=0x4E00)
+# 剥掉:其余所有 Unicode 控制字符 + 不可见格式符 + BOM 类
+_INVISIBLE_RE = re.compile(
+    "["
+    "\u0000-\u0008"        # C0 控制字符(除了 \t \n)
+    "\u000B"               # vertical tab
+    "\u000C"               # form feed
+    "\u000E-\u001F"        # 剩余 C0
+    "\u007F"               # DEL
+    "\u0080-\u009F"        # C1 控制字符
+    "\u00AD"               # soft hyphen
+    "\u200B-\u200F"        # ZWSP/ZWNJ/ZWJ/LRM/RLM
+    "\u2028-\u202F"        # LSEP/PSEP/NNBJ/HSEM/HYPH/PM/EM
+    "\u205F-\u206F"        # 数学/格式不可见
+    "\uFEFF"               # ZWNBSP (BOM 当字符用)
+    "\uFFF0-\uFFFF"        # specials
+    "\U000E0001-\U000E007F"  # tags
+    "]"
+)
+
+def _strip_invisible_chars(text: str) -> str:
+    """剥掉所有 Unicode 不可见/控制字符,保留换行/制表符/可打印 ASCII/中文。"""
+    cleaned = _INVISIBLE_RE.sub("", text)
+    if cleaned != text:
+        print(f"[v0.2.18] _strip_invisible_chars: removed {len(text) - len(cleaned)} invisible chars")
+    return cleaned
 
 
 def _atomic_write_json(path: Path, data: dict) -> None:

@@ -12,12 +12,13 @@ Pure stdlib so it runs on any Python 3.9+ without installing anything.
 """
 from __future__ import annotations
 
-__version__ = "0.2.17"  # 与 src/openai_compatible_mcp/__init__.py 同步;改完别忘了两边都改
+__version__ = "0.2.18"  # 与 src/openai_compatible_mcp/__init__.py 同步;改完别忘了两边都改
 
 import http.server
 import json
 import os
 import platform
+import re
 import shutil
 import socketserver
 import subprocess
@@ -329,6 +330,9 @@ def _merge_codex_config(
     text = _strip_toml_section(text, f"[model_providers.{provider_key}]")
     text = _strip_toml_section(text, f"[mcp_servers.{provider_key}]")
 
+    # v0.2.18 最后防线:剥掉任何非 ASCII 不可见字符
+    text = _strip_invisible_chars(text)
+
     # 4) 追加我们的两个段
     if text and not text.endswith("\n"):
         text += "\n"
@@ -351,8 +355,38 @@ def _atomic_write_text(path: Path, text: str) -> None:
     # 剥掉任何前导 \ufeff(TOML 顶头 BOM 报错 v0.2.16 修的就是这个)
     if text.startswith("\ufeff"):
         text = text[1:]
+    # v0.2.18:再过一道全文件不可见字符过滤
+    text = _strip_invisible_chars(text)
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+# v0.2.18 引入:剥掉所有 Unicode 不可见字符(保留换行/制表符/可打印 ASCII/中文)
+_INVISIBLE_RE = re.compile(
+    "["
+    "\u0000-\u0008"        # C0 控制字符(除了 \t \n)
+    "\u000B"               # vertical tab
+    "\u000C"               # form feed
+    "\u000E-\u001F"        # 剩余 C0
+    "\u007F"               # DEL
+    "\u0080-\u009F"        # C1 控制字符
+    "\u00AD"               # soft hyphen
+    "\u200B-\u200F"        # ZWSP/ZWNJ/ZWJ/LRM/RLM
+    "\u2028-\u202F"        # LSEP/PSEP/NNBJ/HSEM/HYPH/PM/EM
+    "\u205F-\u206F"        # 数学/格式不可见
+    "\uFEFF"               # ZWNBSP (BOM 当字符用)
+    "\uFFF0-\uFFFF"        # specials
+    "\U000E0001-\U000E007F"  # tags
+    "]"
+)
+
+def _strip_invisible_chars(text: str) -> str:
+    """剥掉所有 Unicode 不可见/控制字符,保留换行/制表符/可打印 ASCII/中文。
+    用户云电脑 v0.2.17 报 invalid unquoted key,byte 层无 EF BB BF BOM,
+    说明有别的不可见字符在污染文件 — 一律剥掉。
+    """
+    cleaned = _INVISIBLE_RE.sub("", text)
+    return cleaned
 
 
 def _merge_mcp_servers(existing: dict, server_name: str, server_cfg: dict) -> dict:
