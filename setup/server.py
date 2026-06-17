@@ -12,6 +12,8 @@ Pure stdlib so it runs on any Python 3.9+ without installing anything.
 """
 from __future__ import annotations
 
+__version__ = "0.2.17"  # 与 src/openai_compatible_mcp/__init__.py 同步;改完别忘了两边都改
+
 import http.server
 import json
 import os
@@ -273,12 +275,24 @@ def _merge_codex_config(
 ) -> str:
     """把我们的 model / model_provider / [model_providers.X] / [mcp_servers.X] 合并进
     用户已有的 ~/.codex/config.toml,保留 [windows] / [projects.*] / [notice.*] 等其它段。
+    v0.2.17 起:入口剥 BOM(双重保险),顶头加 written-by 标记。
     """
     import re
 
     text = existing
+    # 1) 入口剥 BOM(双重保险):无论 read 那层有没有剥都干净
+    for _ in range(3):
+        if text and text[0] in "\ufeff\ufffe":
+            text = text[1:]
+        else:
+            break
 
-    # 1) 顶栏 model = "..."(有就替换,没有就插在最前面)
+    # 2) 顶头加 written-by 标记(覆盖原行)
+    text = re.sub(r"(?m)^# written by openai-compatible-mcp.*$\n?", "", text)
+    text = text.lstrip("\n\r ")
+    text = f"# written by openai-compatible-mcp v{__version__} (utf-8, no BOM)\n" + text
+
+    # 3) 顶栏 model = "..."(有就替换,没有就插在 written-by 之后)
     text, n_model = re.subn(
         r'^[ \t]*model[ \t]*=.*$',
         f'model = "{model}"',
@@ -286,7 +300,13 @@ def _merge_codex_config(
         flags=re.MULTILINE,
     )
     if n_model == 0:
-        text = f'model = "{model}"\n' + text
+        # 插在 written-by 那行后面,而不是最前
+        text = re.sub(
+            r'^(# written by openai-compatible-mcp v[^\n]*\n)',
+            r'\1model = "' + model + '"\n',
+            text,
+            count=1,
+        )
 
     # 2) 顶栏 model_provider = "..."(同理)
     text, n_mp = re.subn(
@@ -861,6 +881,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"index.html not found next to server.py")
                 return
             data = INDEX_HTML.read_bytes()
+            # v0.2.17: 注入版本号到 <title>
+            data = data.replace(b"v__VERSION__", f"v{__version__}".encode("utf-8"), 1)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))

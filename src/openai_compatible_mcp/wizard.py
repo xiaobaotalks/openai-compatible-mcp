@@ -267,10 +267,25 @@ def _merge_codex_config(
     provider_block: str,
     mcp_block: str,
 ) -> str:
-    """合并 model / model_provider / 我们的两个段,保留其它段。"""
+    """合并 model / model_provider / 我们的两个段,保留其它段。v0.2.17 起:
+    1) 入口剥 BOM — 无论 read 那一层有没有剥都干净
+    2) 顶头加 # written-by 标记,以后打开 config 就能看到 wizard 是哪个版本跑的
+    """
     import re
+    from . import __version__
 
     text = existing
+    # 1) 入口剥 BOM(双重保险)
+    for _ in range(3):
+        if text and text[0] in "\ufeff\ufffe":
+            text = text[1:]
+        else:
+            break
+
+    # 2) 顶头加 written-by 标记(覆盖原行)
+    text = re.sub(r"(?m)^# written by openai-compatible-mcp.*$\n?", "", text)
+    text = text.lstrip("\n\r ")
+    text = f"# written by openai-compatible-mcp v{__version__} (utf-8, no BOM)\n" + text
 
     text, n_model = re.subn(
         r'^[ \t]*model[ \t]*=.*$',
@@ -279,7 +294,13 @@ def _merge_codex_config(
         flags=re.MULTILINE,
     )
     if n_model == 0:
-        text = f'model = "{model}"\n' + text
+        # 插在 written-by 那行后面,而不是最前
+        text = re.sub(
+            r'^(# written by openai-compatible-mcp v[^\n]*\n)',
+            r'\1model = "' + model + '"\n',
+            text,
+            count=1,
+        )
 
     text, n_mp = re.subn(
         r'^[ \t]*model_provider[ \t]*=.*$',
@@ -849,6 +870,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"index.html not found next to server.py")
                 return
             data = INDEX_HTML.read_bytes()
+            # v0.2.17: 注入版本号到 <title> 标签,让用户打开 8989 就能确认是哪个 wizard
+            try:
+                from . import __version__ as _v
+                data = data.replace(b"v__VERSION__", f"v{_v}".encode("utf-8"), 1)
+            except Exception:
+                pass
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
