@@ -6,7 +6,7 @@ REM 用途: 一键启动 Codex → DeepSeek Responses API 翻译代理
 REM       (默认监听 127.0.0.1:7878,转发到 api.deepseek.com)。
 REM
 REM 行为:
-REM   - 优先调用 `openai-compatible-mcp-proxy`(pip install 时自动加到 PATH)
+REM   - 统一用 `openai-compatible-mcp --proxy` 启动（不再有单独的 proxy 命令）
 REM   - 端口被占用时打一行提示就退出,不让两个代理互相打架
 REM   - 关闭当前 PowerShell 窗口 = 代理停止
 REM
@@ -27,16 +27,11 @@ if /I "%PORT_STATE%"=="IN_USE" (
 
 REM ---------- 1. 选命令 ----------
 set "PROXY_CMD="
-where openai-compatible-mcp-proxy >nul 2>&1
-if not errorlevel 1 set "PROXY_CMD=openai-compatible-mcp-proxy"
+where openai-compatible-mcp >nul 2>&1
+if not errorlevel 1 set "PROXY_CMD=openai-compatible-mcp --proxy"
 
 if not defined PROXY_CMD (
-    where openai-compatible-mcp >nul 2>&1
-    if not errorlevel 1 set "PROXY_CMD=openai-compatible-mcp"
-)
-
-if not defined PROXY_CMD (
-    echo [proxy-launch] 找不到 openai-compatible-mcp / openai-compatible-mcp-proxy 命令。
+    echo [proxy-launch] 找不到 openai-compatible-mcp 命令。
     echo              请先:  pip install openai-compatible-mcp
     pause
     exit /b 1

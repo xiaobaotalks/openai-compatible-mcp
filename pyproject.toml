@@ -30,7 +30,6 @@ dev = [
 
 [project.scripts]
 openai-compatible-mcp = "openai_compatible_mcp.__main__:main"
-openai-compatible-mcp-proxy = "openai_compatible_mcp.proxy_server:main"
 
 [project.urls]
 "Source" = "https://github.com/xiaobaotalks/openai-compatible-mcp"

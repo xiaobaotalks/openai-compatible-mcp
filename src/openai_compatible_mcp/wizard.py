@@ -834,19 +834,7 @@ def start_proxy_in_window() -> dict:
             "command": [],
         }
 
-    import shutil
-    cmd: list[str] | None = None
-    if shutil.which("openai-compatible-mcp-proxy"):
-        cmd = ["openai-compatible-mcp-proxy"]
-    elif shutil.which("openai-compatible-mcp"):
-        cmd = ["openai-compatible-mcp", "--proxy"]
-    else:
-        return {
-            "ok": False,
-            "error": "找不到 openai-compatible-mcp-proxy,请先 `pip install openai-compatible-mcp`",
-            "command": [],
-        }
-
+    cmd = [sys.executable, "-m", "openai_compatible_mcp", "--proxy"]
     ok, msg = _spawn(cmd)
     return {"ok": ok, "message": msg, "command": cmd, "skipped": False}
 

@@ -775,8 +775,8 @@ def _find_claude_launch_cmd() -> "Path | None":
 def start_proxy_in_window() -> dict:
     """POST /api/start-proxy:在**新窗口**启动 Codex 翻译代理 (127.0.0.1:7878)。
 
-    自动跳过已运行的情况。优先用 `openai-compatible-mcp-proxy`(pip 装的
-    console script),fallback 到 `openai-compatible-mcp --proxy`。
+    自动跳过已运行的情况。统一用 `openai-compatible-mcp --proxy` 主命令启动，
+    不再依赖单独的 `openai-compatible-mcp-proxy` console script。
     """
     if _is_port_listening("127.0.0.1", 7878):
         return {
@@ -786,19 +786,7 @@ def start_proxy_in_window() -> dict:
             "command": [],
         }
 
-    import shutil
-    cmd: list[str] | None = None
-    if shutil.which("openai-compatible-mcp-proxy"):
-        cmd = ["openai-compatible-mcp-proxy"]
-    elif shutil.which("openai-compatible-mcp"):
-        cmd = ["openai-compatible-mcp", "--proxy"]
-    else:
-        return {
-            "ok": False,
-            "error": "找不到 openai-compatible-mcp-proxy,请先 `pip install openai-compatible-mcp`",
-            "command": [],
-        }
-
+    cmd = [sys.executable, "-m", "openai_compatible_mcp", "--proxy"]
     ok, msg = _spawn(cmd)
     return {"ok": ok, "message": msg, "command": cmd, "skipped": False}
 
