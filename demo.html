@@ -32,11 +32,7 @@
     padding: 24px 0;
     margin-bottom: 24px;
   }
-  header h1 {
-    margin: 0;
-    font-size: 28px;
-    letter-spacing: 0.5px;
-  }
+  header h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
   header p { margin: 6px 0 0; color: var(--muted); }
   .badge {
     display: inline-block;
@@ -96,13 +92,6 @@
     font-size: 12px;
     line-height: 1.55;
   }
-  .arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: var(--muted);
-  }
   .step {
     display: flex;
     gap: 12px;
@@ -161,7 +150,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="configSection">
     <h2>体验 1：配置翻译器</h2>
     <p class="muted">选择一个样例，或直接粘贴你的配置，查看翻译后的结果。</p>
     <div class="row" style="margin-top:10px;">
@@ -171,7 +160,7 @@
         <option value="claude">样例：Claude Desktop 直连 DeepSeek</option>
         <option value="cursor">样例：Cursor MCP 配置</option>
       </select>
-      <button onclick="translateConfig()">翻译配置</button>
+      <button id="btnTranslateConfig">翻译配置</button>
     </div>
     <div class="grid" style="margin-top:14px;">
       <div>
@@ -185,7 +174,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="protoSection">
     <h2>体验 2：协议翻译器</h2>
     <p class="muted">模拟 Codex 发出的 Responses 请求，看代理如何把它翻译成 Chat Completions 请求。</p>
     <div class="grid" style="margin-top:10px;">
@@ -199,7 +188,7 @@
       </div>
     </div>
     <div class="row" style="margin-top:10px;">
-      <button onclick="translateRequest()">翻译请求</button>
+      <button id="btnTranslateRequest">翻译请求</button>
       <span id="requestStatus" class="muted"></span>
     </div>
   </section>
@@ -267,18 +256,24 @@ openai-compatible-mcp --proxy</div>
 }`
   };
 
-  document.getElementById('sampleSelect').addEventListener('change', function(e) {
+  const sampleSelect = document.getElementById('sampleSelect');
+  const inputConfig = document.getElementById('inputConfig');
+  const outputConfig = document.getElementById('outputConfig');
+  const requestInput = document.getElementById('requestInput');
+  const requestOutput = document.getElementById('requestOutput');
+  const requestStatus = document.getElementById('requestStatus');
+
+  sampleSelect.addEventListener('change', function(e) {
     const key = e.target.value;
     if (key && samples[key]) {
-      document.getElementById('inputConfig').value = samples[key];
+      inputConfig.value = samples[key];
     }
   });
 
-  function translateConfig() {
-    const input = document.getElementById('inputConfig').value.trim();
-    const out = document.getElementById('outputConfig');
+  document.getElementById('btnTranslateConfig').addEventListener('click', function() {
+    const input = inputConfig.value.trim();
     if (!input) {
-      out.value = '请先输入或选择一个样例配置。';
+      outputConfig.value = '请先输入或选择一个样例配置。';
       return;
     }
     let result = input;
@@ -302,16 +297,14 @@ openai-compatible-mcp --proxy</div>
     } catch (e) {
       result = '// 注意：输入不是合法 JSON，以下为简化示意结果\n' + result;
     }
-    out.value = result;
-  }
+    outputConfig.value = result;
+  });
 
-  function translateRequest() {
-    const input = document.getElementById('requestInput').value.trim();
-    const out = document.getElementById('requestOutput');
-    const status = document.getElementById('requestStatus');
+  document.getElementById('btnTranslateRequest').addEventListener('click', function() {
+    const input = requestInput.value.trim();
     if (!input) {
-      out.value = '请输入原始请求 JSON。';
-      status.textContent = '';
+      requestOutput.value = '请输入原始请求 JSON。';
+      requestStatus.textContent = '';
       return;
     }
     try {
@@ -327,15 +320,15 @@ openai-compatible-mcp --proxy</div>
           chat.messages.push({ role: item.role, content: item.content });
         }
       }
-      out.value = JSON.stringify(chat, null, 2);
-      status.textContent = '翻译完成：responses -> chat/completions';
-      status.className = 'success';
+      requestOutput.value = JSON.stringify(chat, null, 2);
+      requestStatus.textContent = '翻译完成：responses -> chat/completions';
+      requestStatus.className = 'success';
     } catch (e) {
-      out.value = '// 输入 JSON 解析失败：' + e.message;
-      status.textContent = '解析失败';
-      status.className = 'danger';
+      requestOutput.value = '// 输入 JSON 解析失败：' + e.message;
+      requestStatus.textContent = '解析失败';
+      requestStatus.className = 'danger';
     }
-  }
+  });
 </script>
 </body>
 </html>
