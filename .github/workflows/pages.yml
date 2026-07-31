@@ -8,7 +8,7 @@ on:
       - 'contest/**'
       - 'docs/**'
       - 'README.md'
-      - 'README.zh-CN.md'
+      - 'README.en.md'
       - '.github/workflows/pages.yml'
 
 permissions:

@@ -1,97 +1,98 @@
-# openai-compatible-mcp
+<div align="center">
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that
-bridges to any **OpenAI-compatible chat API** — DeepSeek, OpenAI, Azure OpenAI,
-OpenRouter, Together, Groq, local llama.cpp, and friends.
+# 🤖 openai-compatible-mcp
 
-> **Default provider:** DeepSeek. Switch to any OpenAI-compatible endpoint with
-> a single environment variable.
-> **Version:** [v0.2.22](https://pypi.org/project/openai-compatible-mcp/0.2.22/)
-> — see [CHANGELOG.md](CHANGELOG.md) for recent fixes.
-> **Tip:** `openai-compatible-mcp` and `xbcode` are equivalent commands.
+**一个 [MCP](https://modelcontextprotocol.io) 服务器,桥接到任何 OpenAI 兼容的 Chat API**
 
-The package ships **two ways to integrate** with MCP-aware clients:
+[![Version](https://img.shields.io/badge/version-0.2.22-blue?style=for-the-badge)](https://pypi.org/project/openai-compatible-mcp/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openai-compatible-mcp/)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
+[![PyPI](https://img.shields.io/badge/pypi-install-orange?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/openai-compatible-mcp/)
 
-| Mode                | When to use                                                   | Status                |
-| ------------------- | ------------------------------------------------------------- | --------------------- |
-| **MCP server**      | Client launches `python -m openai_compatible_mcp` as a child   | ✅ Stable, stdio      |
-| **Direct API**      | Client calls your already-running `openai-compatible-mcp` proxy at `http://127.0.0.1:7878/v1` | ✅ v0.2.21+, recommended for Codex CLI |
+[![Stars](https://img.shields.io/github/stars/xiaobaotalks/openai-compatible-mcp?style=social)](https://github.com/xiaobaotalks/openai-compatible-mcp)
+[![Issues](https://img.shields.io/github/issues/xiaobaotalks/openai-compatible-mcp?style=social)](https://github.com/xiaobaotalks/openai-compatible-mcp/issues)
 
-The **wizard** at <http://127.0.0.1:8989> auto-detects which mode your client
-needs and writes the right config.
+[English](README.en.md) · [快速开始](#快速开始) · [代理模式](#代理模式codex--第三方客户端) · [PyPI](https://pypi.org/project/openai-compatible-mcp/)
+
+</div>
 
 ---
 
-## Quick start (Codex CLI / Claude / Cursor)
+## ✨ 特性
 
-### 1. Install + start the wizard
+| 特性 | 说明 |
+|:---:|:---|
+| 🪶 **零依赖** | 仅用 Python 3.9+ 标准库,无需 `pip install` 第三方包 |
+| 🔌 **万能兼容** | DeepSeek · OpenAI · Azure · OpenRouter · Together · Groq · llama.cpp |
+| 🎯 **模型别名** | `deepseek-v4-flash` → `deepseek-v4-flash` 等智能映射 |
+| 🧠 **推理提取** | 自动提取 `<think>...</think>` 中的 reasoning 内容 |
+| 🔄 **双模式** | MCP stdio + 直接 HTTP `/v1/chat/completions` |
+| 🌐 **Web UI** | 浏览器可视化配置,热更新无需重启 |
+| 🖥️ **后台代理** | `--background` 后台运行,`--status`/`--stop` 管理 |
+| 📦 **极简代码** | ~400 行核心代码 |
 
-```bash
-pip install --upgrade openai-compatible-mcp
-python -m openai_compatible_mcp
-# or equivalently:
-xbcode
+## 🏗️ 架构
+
 ```
-
-A browser opens at <http://127.0.0.1:8989>.
-
-### 2. Pick provider, paste API key, click "Apply"
-
-The wizard writes the right config for:
-
-- **Codex CLI** → `~/.codex/config.toml` (using *direct API mode*, no MCP sub-process)
-- **Claude Desktop** → `claude_desktop_config.json`
-- **Cursor** → `~/.cursor/mcp.json`
-- **Claude Code** → `~/.claude.json`
-
-…and does **not** overwrite any other servers you've configured.
-
-### 3. Restart Codex / Claude
-
-```bash
-codex        # or restart Claude Desktop / Cursor
+┌──────────────────┐    stdio JSON-RPC    ┌─────────────────────┐
+│  Claude Desktop   │ ───────────────────▶│                     │
+│  Cursor / VSCode  │                     │  openai-compatible  │
+│  Claude Code      │                     │  -mcp               │
+└──────────────────┘                     │                     │
+                                         │  ┌───────────────┐  │
+┌──────────────────┐   HTTP /v1/chat/... │  │  翻译代理      │  │
+│  Codex CLI 0.140+ │ ───────────────────▶│  │  127.0.0.1    │  │
+│  (直连 API)       │                     │  │    :7878      │  │
+└──────────────────┘                     │  └──────┬────────┘  │
+                                         │         │           │
+┌──────────────────┐   http://127/8989   │         ▼           │
+│  你的浏览器        │ ───────────────────▶│  上游 API          │
+│  (向导 UI)        │      一次性配置      │  (DeepSeek 等)     │
+└──────────────────┘                     └─────────────────────┘
 ```
-
-That's it.
-
-> **Heads up — Codex 0.140+:** the wizard uses provider id `openai_compatible`
-> (not `openai_compatible_mcp`) because codex reserves the `openai` prefix for
-> built-ins. If you have an older config from a pre-v0.2.21 wizard, the next
-> "Apply" will auto-migrate it.
 
 ---
 
-## Integration modes
+## 🚀 快速开始
 
-### A. Direct API (recommended for Codex CLI 0.140+)
+### 方式 A:一键安装向导(推荐)
 
-Wizard writes this into `~/.codex/config.toml`:
+双击 `setup\install.bat`(Windows)或运行 `./setup/install.sh`(macOS / Linux),
+浏览器会自动打开图形化向导。选 provider、填 API key、勾选客户端,一键配置。
 
-```toml
-# written by openai-compatible-mcp v0.2.21 (utf-8, no BOM)
-model = "deepseek-v4-pro"
-model_provider = "openai_compatible"
+详细文档见 [setup/README.md](setup/README.md)。
 
-[projects.'c:\users\you']
-trust_level = "trusted"
+### 方式 B:命令行
 
-[windows]
-sandbox = "elevated"
+```bash
+pip install openai-compatible-mcp
 
-[model_providers.openai_compatible]
-name = "OpenAI Compatible"
-base_url = "http://127.0.0.1:7878/v1"
-api_key = "sk-..."
+# 两种等价命令
+openai-compatible-mcp --help
+xbcode --help
 ```
 
-Codex talks straight to the local proxy at `http://127.0.0.1:7878/v1`. **No MCP
-sub-process, no 30-second startup timeout.**
+### 配置 API Key
 
-### B. MCP server (for Claude Desktop, Cursor, etc.)
+```bash
+# DeepSeek (默认)
+export DEEPSEEK_API_KEY="sk-..."
 
-Wizard writes a `[mcp_servers.X]` block in your client config that launches
-`python -m openai_compatible_mcp` as a stdio child. The MCP server then opens
-its own HTTP listener for chat-completion calls.
+# 其他兼容端点
+export OPENAI_COMPATIBLE_MCP_API_KEY="..."
+export OPENAI_COMPATIBLE_MCP_BASE_URL="https://my-endpoint.com"
+export OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL="my-model"
+```
+
+| 设置项 | 查找顺序(第一个非空胜出) |
+|:---|:---|
+| API Key | `OPENAI_COMPATIBLE_MCP_API_KEY` → `DEEPSEEK_API_KEY` → `OPENAI_API_KEY` |
+| Base URL | `OPENAI_COMPATIBLE_MCP_BASE_URL` → `DEEPSEEK_API_BASE` → `OPENAI_BASE_URL` |
+| 默认模型 | `OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL` → `DEEPSEEK_DEFAULT_MODEL` |
+
+### 接入 MCP 客户端
+
+**Claude Desktop / Cursor:**
 
 ```json
 {
@@ -107,88 +108,20 @@ its own HTTP listener for chat-completion calls.
 
 ---
 
-## Architecture
+## 🛠️ 工具
 
-```
-┌──────────────────┐       stdio JSON-RPC        ┌─────────────────────┐
-│ Claude Desktop   │ ───────────────────────────▶│                     │
-│ Cursor / VSCode  │                             │ openai-compatible-  │
-│ Claude Code      │                             │ mcp                 │
-└──────────────────┘                             │                     │
-                                                 │   ┌─────────────┐   │
-┌──────────────────┐      HTTP /v1/chat/...      │   │ Proxy       │   │
-│ Codex CLI 0.140+ │ ───────────────────────────▶│   │ 127.0.0.1   │   │
-│ (direct API)     │                             │   │   :7878     │   │
-└──────────────────┘                             │   └──────┬──────┘   │
-                                                 │          │          │
-┌──────────────────┐      http://127.0.0.1:8989  │          ▼          │
-│ Your browser     │ ───────────────────────────▶│   Upstream API      │
-│ (wizard UI)      │     one-time setup          │   (DeepSeek etc.)   │
-└──────────────────┘                             └─────────────────────┘
-```
+### `chat` — 对话补全
 
-- **`python -m openai_compatible_mcp`** starts **both** the wizard (port 8989) and
-  the local proxy (port 7878) in the same process.
-- The wizard is for setup only — close it after writing config.
-- The proxy is a long-running OpenAI-compatible endpoint — leave it running or
-  set up auto-start (the wizard offers this).
+| 字段 | 类型 | 必填 | 说明 |
+|:---|:---|:---:|:---|
+| `messages` | array | ✅ | `{role, content}` 消息列表 |
+| `model` | string | | 模型名或别名 |
+| `temperature` | number | | 0-2,越小越确定 |
+| `max_tokens` | integer | | 最大生成 token 数 |
+| `system` | string | | 系统提示 |
+| `include_reasoning` | boolean | | 包含 `<think>` 推理内容 |
 
----
-
-## CLI install (no wizard)
-
-```bash
-git clone https://github.com/xiaobaotalks/openai-compatible-mcp.git
-cd openai-compatible-mcp
-pip install -e .
-
-# Set your key
-export DEEPSEEK_API_KEY="sk-..."   # or OPENAI_COMPATIBLE_MCP_API_KEY
-
-# Smoke test
-PYTHONPATH=src python tests/smoke_test.py
-```
-
-### Environment variables
-
-| Setting       | Variables tried (in order)                                                       |
-| ------------- | -------------------------------------------------------------------------------- |
-| API key       | `OPENAI_COMPATIBLE_MCP_API_KEY` → `DEEPSEEK_API_KEY` → `OPENAI_API_KEY`          |
-| Base URL      | `OPENAI_COMPATIBLE_MCP_BASE_URL` → `DEEPSEEK_API_BASE` → `OPENAI_BASE_URL`      |
-| Default model | `OPENAI_COMPATIBLE_MCP_DEFAULT_MODEL` → `DEEPSEEK_DEFAULT_MODEL`                 |
-
----
-
-## Features
-
-- Zero third-party dependencies (Python 3.9+ stdlib only)
-- Works with **any** OpenAI-compatible chat API
-- Built-in wizard: 1 browser tab → 1 click → all clients configured
-- **Dual mode**: MCP stdio *and* direct HTTP `/v1/chat/completions`
-- Friendly model aliases (`deepseek-v4-flash` → `deepseek-v4-flash`, `r1` → `deepseek-reasoner`)
-- Optional reasoning content extraction (DeepSeek-R1 style)
-- Tiny: ~2,000 lines of code
-
----
-
-## Tools (MCP mode)
-
-### `chat`
-
-Send a chat completion to the configured provider.
-
-| Field              | Type            | Required | Description                                                |
-| ------------------ | --------------- | -------- | ---------------------------------------------------------- |
-| `messages`         | array           | yes      | List of `{role, content}` messages (oldest first).         |
-| `model`            | string          | no       | Model name or alias (e.g. `deepseek-v4-flash`, `o1-mini`). |
-| `temperature`      | number          | no       | 0-2, lower = more deterministic.                           |
-| `max_tokens`       | integer         | no       | Maximum tokens to generate.                                |
-| `top_p`            | number          | no       | Nucleus sampling cutoff.                                   |
-| `stop`             | string \| array | no       | Stop sequence(s).                                          |
-| `system`           | string          | no       | System prompt (prepended to the conversation).             |
-| `include_reasoning`| boolean         | no       | Wrap reasoning content in `<think>...</think>`.            |
-
-**Example**:
+**示例:**
 
 ```json
 {
@@ -196,9 +129,7 @@ Send a chat completion to the configured provider.
   "params": {
     "name": "chat",
     "arguments": {
-      "messages": [
-        {"role": "user", "content": "Write a haiku about Python."}
-      ],
+      "messages": [{"role": "user", "content": "写一首关于 Python 的俳句。"}],
       "model": "deepseek-v4-flash",
       "temperature": 0.7
     }
@@ -206,116 +137,115 @@ Send a chat completion to the configured provider.
 }
 ```
 
-### `list_models`
+### `list_models` — 列出模型
 
-Returns the default model and the alias table.
-
----
-
-## Built-in model aliases
-
-| Alias               | Resolves to          |
-| ------------------- | -------------------- |
-| `deepseek-v4-pro`   | `deepseek-v4-pro`    |
-| `deepseek-v4-flash` | `deepseek-v4-flash`  |
-| `deepseek-v3`       | `deepseek-v4-pro`    |
-| `deepseek-chat`     | `deepseek-v4-pro`    |
-| `deepseek-reasoner` | `deepseek-reasoner`  |
-| `deepseek-r1`       | `deepseek-reasoner`  |
-| `gpt-4o`            | `gpt-4o`             |
-| `gpt-4o-mini`       | `gpt-4o-mini`        |
-| `o1`                | `o1`                 |
-| `o1-mini`           | `o1-mini`            |
-| `o3-mini`           | `o3-mini`            |
-
-Any name not in the table is passed through unchanged.
+返回默认模型和完整的别名映射表。
 
 ---
 
-## Proxy mode (Codex / third-party clients)
+## 🎨 模型别名
 
-When using Codex CLI or other clients that need the **Responses API**
-(`/v1/responses`), `openai-compatible-mcp` can start a translation proxy that
-converts Responses API requests to DeepSeek's Chat Completions API and back.
+| 别名 | 解析为 |
+|:---|:---|
+| `deepseek-v4-pro` | `deepseek-v4-pro` |
+| `deepseek-v4-flash` | `deepseek-v4-flash` |
+| `deepseek-reasoner` | `deepseek-reasoner` |
+| `deepseek-r1` | `deepseek-reasoner` |
+| `gpt-4o` | `gpt-4o` |
+| `o1-mini` | `o1-mini` |
 
-### Foreground
+不在别名表中的模型名会原样透传,provider 发布新模型可直接使用。
+
+---
+
+## 🔀 代理模式(Codex / 第三方客户端)
+
+当使用 Codex CLI 等需要 **Responses API** (`/v1/responses`) 的客户端时,
+`openai-compatible-mcp` 启动翻译代理将 Responses API → Chat Completions → Responses。
+
+### 前台运行
 
 ```bash
-# Standard foreground (blocks terminal)
-openai-compatible-mcp --proxy
-xbcode --proxy                    # shorthand
-
-# With inline API key
-xbcode --proxy --api-key sk-your-key
+xbcode --proxy
+xbcode --proxy --api-key sk-你的key
 ```
 
-Default: `http://127.0.0.1:7878`. Translates:
+代理默认监听 `http://127.0.0.1:7878`:
+- `POST /responses` → 翻译为 DeepSeek 请求并返回 Responses 格式
+- `GET /v1/models` → 模型别名列表
+- `GET /health` → 健康检查
 
-- `POST /responses` → DeepSeek `/v1/chat/completions` → Responses format
-- `GET /v1/models` → model alias list
-- `GET /health` → liveness check
-
-### Background (v0.2.22+, Windows)
-
-Uses `DETACHED_PROCESS` — no terminal blocking:
+### 后台运行 (v0.2.22+)
 
 ```bash
-# Start in background
+# 后台启动
 xbcode --proxy --background
 
-# Check status (PID + recent log)
+# 查看状态(PID + 日志)
 xbcode --status
 
-# Stop proxy
+# 停止
 xbcode --stop
 ```
 
-Files:
-- PID: `~/.openai-compatible-mcp/proxy.pid`
-- Log: `~/.openai-compatible-mcp/proxy.log`
+后台文件: `~/.openai-compatible-mcp/proxy.pid` · `~/.openai-compatible-mcp/proxy.log`
 
 ### Web UI
 
-Open `http://127.0.0.1:7878/` in browser to:
-- View current configuration
-- Edit API Key / Base URL (hot-reload, no restart needed)
-- Edit model alias mappings
+浏览器打开 `http://127.0.0.1:7878/`:
+- 📋 查看当前配置
+- ✏️ 修改 API Key / Base URL (热更新,无需重启)
+- 🎛️ 编辑模型别名映射
 
 ---
 
-## Recent fixes (v0.2.13 → v0.2.22)
-
-The wizard has gone through several bug fixes in the past week. If you have
-an **older** version, upgrading and re-applying the wizard is the fastest way
-out of most "Codex says invalid TOML" or "wizard won't start" problems.
-
-| Version | Fix                                                                          |
-| ------- | ---------------------------------------------------------------------------- |
-| 0.2.13  | Initial Codex support (writes `~/.codex/config.toml`)                        |
-| 0.2.14  | `wire_api = "responses"` (Codex 0.140+ deprecates `"chat"`)                  |
-| 0.2.15  | Strip child sections (e.g. `[mcp_servers.X.env]`) to avoid duplicate keys    |
-| 0.2.16  | Strip UTF-8 BOM (PowerShell `Set-Content -Encoding UTF8` adds one)           |
-| 0.2.17  | Add `written by openai-compatible-mcp vX.Y.Z` marker + 3-layer BOM defense   |
-| 0.2.18  | Strip **all** Unicode invisible chars (ZWSP, ZWNBSP, LRM, …) — line 2 of user's config had a ZWNBSP that broke TOML |
-| 0.2.19  | Add `import re` (typo in v0.2.18 broke wizard on startup) + port fallback    |
-| 0.2.20  | Robust relative import (top-level script mode)                               |
-| 0.2.21  | **Rename provider `openai_compatible_mcp` → `openai_compatible` (Codex reserved `openai` prefix) + stop writing `[mcp_servers.X]` by default + new `_strip_any_section` to clear any leftover blocks** |
-| 0.2.22  | **`xbcode` CLI alias + background proxy mode (`--background` / `--status` / `--stop`) + proxy hot-reload fix (stale constants → `_CFG_STATE` accessors) + removed `globals()` mutations + graceful signal handling** |
-
-See [CHANGELOG.md](CHANGELOG.md) for the full history.
-
----
-
-## Development
+## 🧪 测试
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate       # Windows
-source .venv/bin/activate    # macOS / Linux
-pip install -e ".[dev]"
+# 单元测试
+python -m pytest tests/test_unit.py -v
+
+# 冒烟测试
 PYTHONPATH=src python tests/smoke_test.py
 ```
 
-## License
+---
 
-MIT — see [LICENSE](LICENSE).
+## 📁 项目结构
+
+```
+openai-compatible-mcp/
+├── src/openai_compatible_mcp/
+│   ├── __main__.py        # CLI 入口
+│   ├── __init__.py        # MCP server + JSON-RPC
+│   ├── client.py          # API 调用封装
+│   └── proxy_server.py    # Responses ↔ Chat 翻译代理
+├── tests/
+│   ├── test_unit.py       # 单元测试
+│   └── smoke_test.py      # 冒烟测试
+├── setup/                 # 一键安装向导
+└── pyproject.toml
+```
+
+---
+
+## 📜 更新日志
+
+查看 [CHANGELOG.md](CHANGELOG.md) 了解完整变更历史。
+
+**v0.2.22 亮点:**
+- 🆕 `xbcode` 命令别名
+- 🆕 代理后台模式 (`--background` / `--status` / `--stop`)
+- 🐛 代理配置热更新修复
+- 🐛 移除 `globals()` 污染
+- ⚡ 优雅退出与信号处理
+
+---
+
+## 🤝 贡献
+
+欢迎 Issue 和 PR!
+
+## 📄 协议
+
+MIT License — 见 [LICENSE](LICENSE)。
