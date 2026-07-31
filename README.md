@@ -6,8 +6,9 @@ OpenRouter, Together, Groq, local llama.cpp, and friends.
 
 > **Default provider:** DeepSeek. Switch to any OpenAI-compatible endpoint with
 > a single environment variable.
-> **Version:** [v0.2.21](https://pypi.org/project/openai-compatible-mcp/0.2.21/)
+> **Version:** [v0.2.22](https://pypi.org/project/openai-compatible-mcp/0.2.22/)
 > — see [CHANGELOG.md](CHANGELOG.md) for recent fixes.
+> **Tip:** `openai-compatible-mcp` and `xbcode` are equivalent commands.
 
 The package ships **two ways to integrate** with MCP-aware clients:
 
@@ -28,6 +29,8 @@ needs and writes the right config.
 ```bash
 pip install --upgrade openai-compatible-mcp
 python -m openai_compatible_mcp
+# or equivalently:
+xbcode
 ```
 
 A browser opens at <http://127.0.0.1:8989>.
@@ -229,7 +232,58 @@ Any name not in the table is passed through unchanged.
 
 ---
 
-## Recent fixes (v0.2.13 → v0.2.21)
+## Proxy mode (Codex / third-party clients)
+
+When using Codex CLI or other clients that need the **Responses API**
+(`/v1/responses`), `openai-compatible-mcp` can start a translation proxy that
+converts Responses API requests to DeepSeek's Chat Completions API and back.
+
+### Foreground
+
+```bash
+# Standard foreground (blocks terminal)
+openai-compatible-mcp --proxy
+xbcode --proxy                    # shorthand
+
+# With inline API key
+xbcode --proxy --api-key sk-your-key
+```
+
+Default: `http://127.0.0.1:7878`. Translates:
+
+- `POST /responses` → DeepSeek `/v1/chat/completions` → Responses format
+- `GET /v1/models` → model alias list
+- `GET /health` → liveness check
+
+### Background (v0.2.22+, Windows)
+
+Uses `DETACHED_PROCESS` — no terminal blocking:
+
+```bash
+# Start in background
+xbcode --proxy --background
+
+# Check status (PID + recent log)
+xbcode --status
+
+# Stop proxy
+xbcode --stop
+```
+
+Files:
+- PID: `~/.openai-compatible-mcp/proxy.pid`
+- Log: `~/.openai-compatible-mcp/proxy.log`
+
+### Web UI
+
+Open `http://127.0.0.1:7878/` in browser to:
+- View current configuration
+- Edit API Key / Base URL (hot-reload, no restart needed)
+- Edit model alias mappings
+
+---
+
+## Recent fixes (v0.2.13 → v0.2.22)
 
 The wizard has gone through several bug fixes in the past week. If you have
 an **older** version, upgrading and re-applying the wizard is the fastest way
@@ -246,6 +300,7 @@ out of most "Codex says invalid TOML" or "wizard won't start" problems.
 | 0.2.19  | Add `import re` (typo in v0.2.18 broke wizard on startup) + port fallback    |
 | 0.2.20  | Robust relative import (top-level script mode)                               |
 | 0.2.21  | **Rename provider `openai_compatible_mcp` → `openai_compatible` (Codex reserved `openai` prefix) + stop writing `[mcp_servers.X]` by default + new `_strip_any_section` to clear any leftover blocks** |
+| 0.2.22  | **`xbcode` CLI alias + background proxy mode (`--background` / `--status` / `--stop`) + proxy hot-reload fix (stale constants → `_CFG_STATE` accessors) + removed `globals()` mutations + graceful signal handling** |
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 

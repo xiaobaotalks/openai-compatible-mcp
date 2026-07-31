@@ -352,6 +352,134 @@ def _merge_mcp_config(existing: dict, python_exe: str, api_key: str | None) -> d
     return merged
 
 
+def _bg_dir() -> Path:
+    return Path.home() / ".openai-compatible-mcp"
+
+
+def _bg_pid_path() -> Path:
+    return _bg_dir() / "proxy.pid"
+
+
+def _bg_log_path() -> Path:
+    return _bg_dir() / "proxy.log"
+
+
+def _proxy_status() -> dict:
+    """查询代理服务器状态。"""
+    pid_path = _bg_pid_path()
+    if not pid_path.exists():
+        return {"running": False, "reason": "无 PID 文件"}
+    try:
+        pid = int(pid_path.read_text().strip())
+    except (ValueError, OSError):
+        return {"running": False, "reason": "PID 文件损坏"}
+
+    if platform.system() == "Windows":
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if str(pid) in result.stdout:
+            log_tail = ""
+            log_path = _bg_log_path()
+            if log_path.exists():
+                try:
+                    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                    log_tail = "\n".join(lines[-5:])
+                except Exception:
+                    pass
+            return {"running": True, "pid": pid, "log": str(log_path), "log_tail": log_tail}
+        return {"running": False, "reason": f"PID {pid} 进程不存在"}
+    else:
+        try:
+            os.kill(pid, 0)
+            return {"running": True, "pid": pid}
+        except (OSError, ProcessLookupError):
+            return {"running": False, "reason": f"PID {pid} 进程不存在"}
+
+
+def _proxy_stop() -> bool:
+    """停止后台代理。"""
+    pid_path = _bg_pid_path()
+    if not pid_path.exists():
+        print("[openai-compatible-mcp] 无后台代理运行 (PID 文件不存在)", file=sys.stderr)
+        return False
+    try:
+        pid = int(pid_path.read_text().strip())
+    except (ValueError, OSError):
+        print("[openai-compatible-mcp] PID 文件损坏,请手动删除", file=sys.stderr)
+        pid_path.unlink(missing_ok=True)
+        return False
+
+    if platform.system() == "Windows":
+        result = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/F"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if "SUCCESS" in result.stdout or result.returncode == 0:
+            print(f"[openai-compatible-mcp] 已停止代理 (PID={pid})", file=sys.stderr)
+            pid_path.unlink(missing_ok=True)
+            return True
+        print(f"[openai-compatible-mcp] 停止失败: {result.stdout} {result.stderr}", file=sys.stderr)
+        return False
+    else:
+        try:
+            os.kill(pid, 15)
+            print(f"[openai-compatible-mcp] 已发送 SIGTERM 到 PID={pid}", file=sys.stderr)
+            pid_path.unlink(missing_ok=True)
+            return True
+        except OSError as e:
+            print(f"[openai-compatible-mcp] 停止失败: {e}", file=sys.stderr)
+            return False
+
+
+def _proxy_background_start(api_key: str | None) -> int:
+    """以后台方式启动代理。"""
+    pid_path = _bg_pid_path()
+    status = _proxy_status()
+    if status.get("running"):
+        print(f"[openai-compatible-mcp] 代理已在运行 (PID={status['pid']})", file=sys.stderr)
+        return 0
+
+    _bg_dir().mkdir(parents=True, exist_ok=True)
+
+    cmd = [sys.executable, "-m", "openai_compatible_mcp"]
+    if api_key:
+        cmd += ["--proxy", "--api-key", api_key]
+    else:
+        cmd += ["--proxy"]
+
+    env = os.environ.copy()
+    if api_key:
+        env["DEEPSEEK_API_KEY"] = api_key
+
+    creationflags = 0
+    if platform.system() == "Windows":
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        DETACHED_PROCESS = 0x00000008
+        creationflags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+    log_path = _bg_log_path()
+    log_fh = open(log_path, "a", encoding="utf-8")
+
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log_fh,
+        stderr=log_fh,
+        stdin=subprocess.DEVNULL,
+        env=env,
+        creationflags=creationflags if platform.system() == "Windows" else 0,
+        close_fds=True if platform.system() != "Windows" else False,
+    )
+
+    pid_path.write_text(str(proc.pid))
+    print(f"[openai-compatible-mcp] 代理已在后台启动 (PID={proc.pid})", file=sys.stderr)
+    print(f"[openai-compatible-mcp] 日志文件: {log_path}", file=sys.stderr)
+    print(f"[openai-compatible-mcp] 查看状态: xbcode --status", file=sys.stderr)
+    print(f"[openai-compatible-mcp] 停止代理: xbcode --stop", file=sys.stderr)
+    return 0
+
+
 def _write_proxy_api_key(api_key: str, log_fn: Callable[[str], None]) -> bool:
     """把 DeepSeek API Key 写到 ~/.openai-compatible-mcp/proxy.json,
     供 `openai-compatible-mcp --proxy` 启动时读取。
@@ -501,6 +629,21 @@ def main(argv: list[str] | None = None) -> int:
             " Flask / httpx 会在首次运行时自动 pip install。"
         ),
     )
+    mode.add_argument(
+        "--stop",
+        action="store_true",
+        help="停止后台运行的代理服务器(读取 PID 文件)。",
+    )
+    mode.add_argument(
+        "--status",
+        action="store_true",
+        help="查看代理服务器运行状态(PID + 端口)。",
+    )
+    parser.add_argument(
+        "--background", "-b",
+        action="store_true",
+        help="配合 --proxy 使用: 以后台方式启动代理(Windows 用 DETACHED_PROCESS)。",
+    )
     parser.add_argument(
         "--client",
         choices=["claude_desktop", "claude_code", "cursor"],
@@ -532,6 +675,21 @@ def main(argv: list[str] | None = None) -> int:
         _print_selfcheck(log)
         return 0
 
+    if args.status:
+        status = _proxy_status()
+        if status.get("running"):
+            print(f"[openai-compatible-mcp] 代理运行中 (PID={status['pid']})", file=sys.stderr)
+            print(f"[openai-compatible-mcp] 日志: {status.get('log', '?')}", file=sys.stderr)
+            if status.get("log_tail"):
+                print(f"--- 最近日志 ---", file=sys.stderr)
+                print(status["log_tail"], file=sys.stderr)
+        else:
+            print(f"[openai-compatible-mcp] 代理未运行 ({status.get('reason', '?')})", file=sys.stderr)
+        return 0
+
+    if args.stop:
+        return 0 if _proxy_stop() else 1
+
     # 独立模式:`openai-compatible-mcp --api-key sk-xxx`(不带 --install-config
     # 也不带 --proxy),只把 key 写到 ~/.openai-compatible-mcp/proxy.json,
     # 之后任何 `openai-compatible-mcp --proxy` 都能读到。
@@ -559,6 +717,8 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if args.proxy:
+        if args.background:
+            return _proxy_background_start(args.api_key)
         # 允许 --api-key 直接传 DeepSeek Key(免去打开浏览器向导的步骤);
         # 这里把 key 注入到 DEEPSEEK_API_KEY 环境变量,proxy_server 在
         # 启动时会优先读 env,fallback 到 ~/.openai-compatible-mcp/proxy.json。

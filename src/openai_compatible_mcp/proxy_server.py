@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -48,10 +49,10 @@ from flask import Flask, Response, jsonify, request, stream_with_context  # noqa
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-# 优先读环境变量,其次是写在用户主目录 ~/.openai-compatible-mcp/proxy.json
-# (由 wizard 在用户配 API Key 时写入),最后是默认值。
 _CONFIG_DIR = Path.home() / ".openai-compatible-mcp"
 _CONFIG_PATH = _CONFIG_DIR / "proxy.json"
+_PID_PATH = _CONFIG_DIR / "proxy.pid"
+_LOG_PATH = _CONFIG_DIR / "proxy.log"
 
 
 def _load_config() -> dict:
@@ -65,18 +66,6 @@ def _load_config() -> dict:
 
 
 CONFIG = _load_config()
-DEEPSEEK_API_BASE = os.environ.get(
-    "DEEPSEEK_API_BASE", CONFIG.get("deepseek_api_base", "https://api.deepseek.com")
-)
-DEEPSEEK_API_KEY = os.environ.get(
-    "DEEPSEEK_API_KEY", CONFIG.get("deepseek_api_key", "")
-)
-PROXY_HOST = os.environ.get(
-    "PROXY_HOST", CONFIG.get("proxy_host", "127.0.0.1")
-)
-PROXY_PORT = int(
-    os.environ.get("PROXY_PORT", str(CONFIG.get("proxy_port", 7878)))
-)
 
 # Codex -> DeepSeek model name mapping
 MODEL_MAP: dict[str, str] = CONFIG.get("model_map", {
@@ -90,13 +79,8 @@ MODEL_MAP: dict[str, str] = CONFIG.get("model_map", {
     "deepseek-r1": "deepseek-reasoner",
 })
 DEFAULT_MODEL = CONFIG.get("default_model", "deepseek-chat")
-
-# Network tunables
 UPSTREAM_TIMEOUT = float(CONFIG.get("upstream_timeout", 600))
 VERBOSE = bool(CONFIG.get("verbose", False))
-
-_CONFIG_DIR = Path.home() / ".openai-compatible-mcp"
-_CONFIG_PATH = _CONFIG_DIR / "proxy.json"
 
 # 模块级可变配置(用户改完 /api/* 后会立即生效,不用重启 proxy)
 _CFG_STATE: dict = {
@@ -108,6 +92,8 @@ _CFG_STATE: dict = {
     ),
     "default_model": CONFIG.get("default_model", "deepseek-chat"),
     "model_map": CONFIG.get("model_map", MODEL_MAP),
+    "proxy_host": os.environ.get("PROXY_HOST", CONFIG.get("proxy_host", "127.0.0.1")),
+    "proxy_port": int(os.environ.get("PROXY_PORT", str(CONFIG.get("proxy_port", 7878)))),
 }
 
 
@@ -140,9 +126,12 @@ def _base() -> str:
     return env if env else _CFG_STATE["deepseek_api_base"]
 
 
-# 旧名(下面其它逻辑还在用 DEEPSEEK_API_KEY / DEEPSEEK_API_BASE 全局变量)
-DEEPSEEK_API_BASE = _CFG_STATE["deepseek_api_base"]
-DEEPSEEK_API_KEY = _CFG_STATE["deepseek_api_key"]
+def _host() -> str:
+    return _CFG_STATE["proxy_host"]
+
+
+def _port() -> int:
+    return _CFG_STATE["proxy_port"]
 
 
 def _mask_key(k: str) -> str:
@@ -915,20 +904,20 @@ def root():
         return jsonify({
             "name": "openai-compatible-mcp proxy",
             "role": "Codex Responses API  ->  DeepSeek Chat Completions",
-            "upstream": DEEPSEEK_API_BASE,
-            "api_key_configured": bool(DEEPSEEK_API_KEY),
-            "api_key_masked": _mask_key(DEEPSEEK_API_KEY),
+            "upstream": _base(),
+            "api_key_configured": bool(_key()),
+            "api_key_masked": _mask_key(_key()),
             "default_model": _CFG_STATE["default_model"],
-            "listen": f"{PROXY_HOST}:{PROXY_PORT}",
+            "listen": f"{_host()}:{_port()}",
             "endpoints": {
                 "POST /responses": "Codex-style Responses API (preferred)",
                 "POST /v1/responses": "Same as above, with /v1 prefix",
                 "GET  /v1/models": "List model aliases that proxy knows about",
                 "GET  /health": "Liveness probe (returns upstream + key status)",
             },
-            "ui": "Open http://127.0.0.1:" + str(PROXY_PORT) + "/ in a browser to edit settings.",
+            "ui": "Open http://127.0.0.1:" + str(_port()) + "/ in a browser to edit settings.",
         })
-    return _ROOT_HTML.replace("__PORT__", str(PROXY_PORT))
+    return _ROOT_HTML.replace("__PORT__", str(_port()))
 
 
 @app.route("/api/settings", methods=["GET"])
@@ -940,7 +929,7 @@ def api_settings():
         "deepseek_api_base": _base(),
         "default_model": _CFG_STATE["default_model"],
         "model_options": sorted(set(list(_CFG_STATE["model_map"].keys()) + ["deepseek-chat", "deepseek-reasoner"])),
-        "listen": f"{PROXY_HOST}:{PROXY_PORT}",
+        "listen": f"{_host()}:{_port()}",
     })
 
 
@@ -953,8 +942,6 @@ def api_key():
     if len(new_key) < 10:
         return jsonify({"ok": False, "error": "api_key 太短,至少 10 个字符"}), 400
     _CFG_STATE["deepseek_api_key"] = new_key
-    # 全局变量同步(给下面 /responses 等路由用)
-    globals()["DEEPSEEK_API_KEY"] = new_key
     ok = _persist_config()
     return jsonify({"ok": ok, "api_key_masked": _mask_key(new_key), "persisted": ok})
 
@@ -966,7 +953,6 @@ def api_base_url():
     if not (new_base.startswith("http://") or new_base.startswith("https://")):
         return jsonify({"ok": False, "error": "base_url 必须以 http:// 或 https:// 开头"}), 400
     _CFG_STATE["deepseek_api_base"] = new_base
-    globals()["DEEPSEEK_API_BASE"] = new_base
     ok = _persist_config()
     return jsonify({"ok": ok, "deepseek_api_base": new_base, "persisted": ok})
 
@@ -1004,9 +990,9 @@ def api_test():
 def health():
     return jsonify({
         "status": "ok",
-        "upstream": DEEPSEEK_API_BASE,
+        "upstream": _base(),
         "proxy": "codex-responses -> deepseek-chat-completions",
-        "api_key_configured": bool(DEEPSEEK_API_KEY),
+        "api_key_configured": bool(_key()),
     })
 
 
@@ -1028,7 +1014,7 @@ def list_models():
 
 
 def _upstream_headers(req) -> dict:
-    api_key = DEEPSEEK_API_KEY or req.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    api_key = _key() or req.headers.get("Authorization", "").replace("Bearer ", "").strip()
     return {
         "Authorization": f"Bearer {api_key}" if api_key else "",
         "Content-Type": "application/json",
@@ -1037,7 +1023,7 @@ def _upstream_headers(req) -> dict:
 
 
 def _proxy_request():
-    if not DEEPSEEK_API_KEY:
+    if not _key():
         return jsonify({
             "error": {
                 "message": "DEEPSEEK_API_KEY is not configured. Edit proxy/config.json.",
@@ -1061,7 +1047,7 @@ def _proxy_request():
         def generate():
             with client.stream(
                 "POST",
-                f"{DEEPSEEK_API_BASE}/v1/chat/completions",
+                f"{_base()}/v1/chat/completions",
                 json=chat_req,
                 headers=headers,
             ) as r:
@@ -1088,7 +1074,7 @@ def _proxy_request():
     try:
         with httpx.Client(timeout=UPSTREAM_TIMEOUT) as client:
             r = client.post(
-                f"{DEEPSEEK_API_BASE}/v1/chat/completions",
+                f"{_base()}/v1/chat/completions",
                 json=chat_req,
                 headers=headers,
             )
@@ -1133,8 +1119,8 @@ def not_found(_e):
 # ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
-def main():
-    if not DEEPSEEK_API_KEY:
+def main(background: bool = False):
+    if not _key():
         print(
             f"WARNING: DEEPSEEK_API_KEY not set. Wizard should have written it to {_CONFIG_PATH}, "
             f"or set the env var before running.",
@@ -1156,10 +1142,42 @@ def main():
             f"    3) 设环境变量:`$env:DEEPSEEK_API_KEY='sk-你的key'`(PowerShell)再跑 --proxy。",
             file=sys.stderr,
         )
-    print(f"Proxy listening on http://{PROXY_HOST}:{PROXY_PORT}", flush=True)
-    print(f"Forwarding to {DEEPSEEK_API_BASE}/v1/chat/completions", flush=True)
-    print("Endpoints: POST /responses  (or /v1/responses), GET /v1/models, GET /health", flush=True)
-    app.run(host=PROXY_HOST, port=PROXY_PORT, threaded=True, debug=False, use_reloader=False)
+
+    host = _host()
+    port = _port()
+
+    if background:
+        _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with _PID_PATH.open("w") as f:
+            f.write(str(os.getpid()))
+        # 重定向 stdout/stderr 到日志文件
+        log_fh = open(_LOG_PATH, "a", encoding="utf-8")
+        sys.stdout = log_fh
+        sys.stderr = log_fh
+        print(f"[proxy] Background proxy started. PID={os.getpid()}", flush=True)
+        print(f"[proxy] Listening on http://{host}:{port}", flush=True)
+        print(f"[proxy] Log file: {_LOG_PATH}", flush=True)
+    else:
+        print(f"Proxy listening on http://{host}:{port}", flush=True)
+        print(f"Forwarding to {_base()}/v1/chat/completions", flush=True)
+        print("Endpoints: POST /responses  (or /v1/responses), GET /v1/models, GET /health", flush=True)
+
+    # 注册信号处理,优雅退出
+    def _graceful(signum, frame):
+        print(f"\n[proxy] Received signal {signum}, shutting down...", flush=True)
+        try:
+            _PID_PATH.unlink(missing_ok=True)
+        except Exception:
+            pass
+        sys.exit(0)
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, _graceful)
+        except (OSError, ValueError):
+            pass  # Windows 不支持某些信号
+
+    app.run(host=host, port=port, threaded=True, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":

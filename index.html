@@ -1005,7 +1005,7 @@
     <header class="hero">
       <div class="hero__badges">
         <span class="badge is-cyan"><span class="badge__dot"></span>MIT</span>
-        <span class="badge is-green">v0.2.21</span>
+        <span class="badge is-green">v0.2.22</span>
         <span class="badge is-violet">零三方依赖</span>
         <span class="badge is-amber">Codex + Claude Code 适配</span>
         <span class="badge">Python 3.9+</span>
@@ -1053,29 +1053,29 @@
             <code id="q1">pip install openai-compatible-mcp</code>
             <button class="copybtn" data-copy="q1">复制</button>
           </div>
-          <div class="cmd-line"><span class="dim">Successfully installed openai-compatible-mcp-0.2.21</span></div>
+          <div class="cmd-line"><span class="dim">Successfully installed openai-compatible-mcp-0.2.22</span></div>
           <div class="cmd-line copyrow">
             <span class="prompt">$</span>
-            <code id="q2">openai-compatible-mcp --api-key sk-你的DeepSeekKey</code>
+            <code id="q2">xbcode --api-key sk-你的DeepSeekKey</code>
             <button class="copybtn" data-copy="q2">复制</button>
           </div>
           <div class="cmd-line"><span class="ok">→</span> <span class="dim">已写入</span> <span class="hl">~/.openai-compatible-mcp/proxy.json</span> <span class="dim">(不用开浏览器)</span></div>
           <div class="cmd-line copyrow">
             <span class="prompt">$</span>
-            <code id="q3">openai-compatible-mcp --proxy</code>
+            <code id="q3">xbcode --proxy --background</code>
             <button class="copybtn" data-copy="q3">复制</button>
           </div>
-          <div class="cmd-line"><span class="ok">→</span> <span class="hl">代理监听</span> <span class="dim">http://127.0.0.1:7878</span> <span class="ok">·</span> <span class="hl">Codex / Claude Code 直接连</span></div>
+          <div class="cmd-line"><span class="ok">→</span> <span class="hl">代理后台启动</span> <span class="dim">(PID 写入 proxy.pid)</span> <span class="ok">·</span> <span class="dim">xbcode --status 查看</span></div>
         </div>
       </div>
 
       <div class="whatsnew">
-        <span class="whatsnew__tag">v0.2.21</span>
+        <span class="whatsnew__tag">v0.2.22</span>
         <div class="whatsnew__items">
-          <span class="whatsnew__item"><span class="dot"></span><b>Codex 0.140+</b> 兼容(避开 <code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg-3);color:var(--cyan);">openai_*</code> 保留名)</span>
-          <span class="whatsnew__item"><span class="dot"></span>Codex 走 <b>直连 API</b>(不再卡 30s MCP 启动超时)</span>
-          <span class="whatsnew__item"><span class="dot"></span>TOML 配置 <b>合并 + 去重</b></span>
-          <span class="whatsnew__item"><span class="dot"></span>port-7878 / 8989 防冲突</span>
+          <span class="whatsnew__item"><span class="dot"></span><b>xbcode</b> 简写命令别名 (等同 openai-compatible-mcp)</span>
+          <span class="whatsnew__item"><span class="dot"></span>代理 <b>后台模式</b> · <code>--background</code> / <code>--status</code> / <code>--stop</code></span>
+          <span class="whatsnew__item"><span class="dot"></span>配置 <b>热更新</b> (Web UI 改 key/base URL 即时生效)</span>
+          <span class="whatsnew__item"><span class="dot"></span>优雅退出 · signal handling · PID 管理</span>
         </div>
       </div>
     </header>
@@ -1095,7 +1095,7 @@
             <div>
               <div class="mockup__title">环境自检</div>
               <div class="mockup__row"><span class="mockup__dot"></span>Python 3.12.1</div>
-              <div class="mockup__row"><span class="mockup__dot"></span>openai-compatible-mcp v0.2.21</div>
+              <div class="mockup__row"><span class="mockup__dot"></span>openai-compatible-mcp v0.2.22</div>
               <div class="mockup__row"><span class="mockup__dot"></span>已检测 Claude Desktop / Cursor / Claude Code 路径</div>
             </div>
           </div>
@@ -1498,7 +1498,7 @@
 
     <footer>
       <div class="foot">
-        <div>openai-compatible-mcp · MIT License · v0.2.21</div>
+        <div>openai-compatible-mcp · MIT License · v0.2.22</div>
         <div class="foot__links">
           <a href="https://github.com/xiaobaotalks/openai-compatible-mcp" target="_blank">GitHub</a>
           <a href="https://pypi.org/project/openai-compatible-mcp/" target="_blank">PyPI</a>

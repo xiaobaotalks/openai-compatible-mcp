@@ -3,6 +3,41 @@
 All notable changes to `openai-compatible-mcp` are documented here. Versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.22] - 2026-07-31
+
+### Added
+- **`xbcode` CLI alias**: Added `xbcode` as an alternative command name
+  (same entry point as `openai-compatible-mcp`). Both commands are available
+  after `pip install`.
+- **Background proxy mode**: New `--proxy --background` flag starts the proxy
+  as a detached background process on Windows (DETACHED_PROCESS). Includes:
+  - `--status`: Check if the background proxy is running (PID + recent log tail)
+  - `--stop`: Stop a running background proxy via `taskkill /F`
+  - PID file at `~/.openai-compatible-mcp/proxy.pid`
+  - Log file at `~/.openai-compatible-mcp/proxy.log`
+
+### Fixed (proxy_server)
+- **Hot-reload of API key / base URL**: `_upstream_headers()` and
+  `_proxy_request()` now read `_CFG_STATE` via `_key()` / `_base()` accessors
+  instead of stale module-level constants. Changes made via the web UI
+  (`/api/key`, `/api/base-url`) now take effect immediately without a
+  proxy restart.
+- **Removed duplicate `_CONFIG_DIR` / `_CONFIG_PATH` definitions**: These
+  were declared twice at module level, causing confusion.
+- **Removed `globals()` mutations**: API handlers no longer write to
+  `globals()["DEEPSEEK_API_KEY"]` / `globals()["DEEPSEEK_API_BASE"]`.
+  All state is managed through `_CFG_STATE`.
+- **Configurable proxy host/port**: `PROXY_HOST` / `PROXY_PORT` were hardcoded
+  module-level constants. They are now part of `_CFG_STATE` and can be
+  configured via `proxy.json`.
+- **Graceful shutdown**: Added `signal.SIGINT` / `signal.SIGTERM` handlers
+  for clean proxy teardown (PID cleanup, log flush).
+
+### Fixed (tests)
+- Updated `test_wizard_codex_uses_local_proxy_url` to match the v0.2.21
+  implementation: provider key is `openai_compatible` (not
+  `openai_compatible_mcp`), and no `[mcp_servers.*]` section is written.
+
 ## [0.2.21] - 2026-06-17
 
 ### Fixed (Codex config rewrite)

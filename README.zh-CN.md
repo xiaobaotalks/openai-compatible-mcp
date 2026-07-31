@@ -52,6 +52,13 @@ pip install -e .
 PYTHONPATH=src python -m openai_compatible_mcp
 ```
 
+安装后会注册两个命令,完全等价:
+
+```bash
+openai-compatible-mcp --help   # 原始命令
+xbcode --help                   # 简写别名(v0.2.22+)
+```
+
 #### 2. 配置
 
 设置你的 API key(可选地设置 base URL):
@@ -201,6 +208,55 @@ model: deepseek-v4-pro | prompt_tokens: 12 | completion_tokens: 28 | total_token
 | `o3-mini`            | `o3-mini`             |
 
 不在别名表里的模型名会原样透传给 provider,所以 provider 一发布新模型就能直接用。
+
+## 代理模式(Codex / 第三方客户端)
+
+当使用 Codex CLI 等需要 **Responses API** (`/v1/responses`) 的客户端时,
+`openai-compatible-mcp` 可以启动一个翻译代理,将 Responses API 请求转换为
+DeepSeek 的 Chat Completions API,再翻译回 Responses 格式。
+
+### 前台运行
+
+```bash
+# 普通前台运行(阻塞终端)
+openai-compatible-mcp --proxy
+xbcode --proxy                    # 简写
+
+# 指定 API key(免去配置文件)
+xbcode --proxy --api-key sk-你的key
+```
+
+代理默认监听 `http://127.0.0.1:7878`,自动翻译:
+
+- `POST /responses` → DeepSeek `/v1/chat/completions` → Responses 格式
+- `GET /v1/models` → 返回模型别名列表
+- `GET /health` → 健康检查
+
+### 后台运行(v0.2.22+)
+
+Windows 下使用 `DETACHED_PROCESS` 启动,不阻塞终端:
+
+```bash
+# 后台启动代理
+xbcode --proxy --background
+
+# 查看运行状态(PID + 最近日志)
+xbcode --status
+
+# 停止代理
+xbcode --stop
+```
+
+后台运行时:
+- PID 文件: `~/.openai-compatible-mcp/proxy.pid`
+- 日志文件: `~/.openai-compatible-mcp/proxy.log`
+
+### Web UI
+
+浏览器打开 `http://127.0.0.1:7878/` 可以:
+- 查看当前配置
+- 修改 API Key / Base URL(热更新,无需重启)
+- 编辑模型别名映射
 
 ## 冒烟测试
 
